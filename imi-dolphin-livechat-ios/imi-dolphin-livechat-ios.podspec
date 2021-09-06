@@ -3,12 +3,12 @@ Pod::Spec.new do |spec|
 
 
   spec.name         = "imi-dolphin-livechat-ios"
-  spec.version      = "2.0.1"
+  spec.version      = "2.0.2"
   spec.summary      = "Description of livechat connector by 3dolphins"
 
   spec.description  = "dolphin livechat connector is a library which help user to build chat application easy using Stompclient library"
 
-  spec.homepage     = "https://jupiter.3dolphinsocial.com/3dolphins/dolphin-sdk/imi-dolphin-livechat-ios"
+  spec.homepage     = "https://github.com/3dolphin/3dolphin-imi-dolphin-livechat-connector-ios"
 
   spec.license      = "MIT"
 
@@ -19,7 +19,7 @@ Pod::Spec.new do |spec|
   spec.platform     = :ios, "11.0"
   spec.ios.deployment_target  = '11.0'
  
-  spec.source       = { :git => "https://jupiter.3dolphinsocial.com/3dolphins/dolphin-sdk/imi-dolphin-livechat-ios.git", :tag => spec.version.to_s }
+  spec.source       = { :git => "https://github.com/3dolphin/3dolphin-imi-dolphin-livechat-connector-ios.git", :tag => spec.version.to_s }
 
   spec.source_files  = '**/Sources/*.swift'
 

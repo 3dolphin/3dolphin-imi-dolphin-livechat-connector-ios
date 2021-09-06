@@ -17,9 +17,9 @@ class ViewController: UIViewController {
     /*
      setup url, clientId, and clientSecret before connection started
      */
-    let baseUrl: String = "https://adapter.3dolphins.ai:31632"
-    let clientId: String = "f181392d7b4f13ec1903d6359edf0cf2"
-    let clientSecrect: String = "e61f8a33cba79b79c541586b944a25cd"
+    let baseUrl: String = "https://adapter.3dolphins.ai:31644"
+    let clientId: String = "b7674391db9fce68390998c3c4865442"
+    let clientSecrect: String = "d501b0b896247c1bb0b8644eaf33d6c7"
 
     
 
@@ -34,7 +34,6 @@ class ViewController: UIViewController {
         connector?.setupConnection(baseUrl: baseUrl, clientId: clientId, clientSecrect: clientSecrect)
         connector?.enableGetQueue(isEnable: true)
         connector?.constructConnector(profile: dolphinProfile)
-        
     }
 
 
