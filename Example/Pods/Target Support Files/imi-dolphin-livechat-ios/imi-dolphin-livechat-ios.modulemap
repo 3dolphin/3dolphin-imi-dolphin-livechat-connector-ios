@@ -1,0 +1,6 @@
+framework module imi_dolphin_livechat_ios {
+  umbrella header "imi-dolphin-livechat-ios-umbrella.h"
+
+  export *
+  module * { export * }
+}
