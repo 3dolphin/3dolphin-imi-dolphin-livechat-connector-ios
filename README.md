@@ -5,7 +5,6 @@
 ## Requirement
 
 
-- **XCode 10.0 +**
 - **XCode 12.1 +**
 - **Swift 4.0, Swift 4.1, Swift 4.2, Swift 5.0**
 
@@ -25,7 +24,9 @@ If any issues happened or class couldn't be called, I recommend you to import li
 ## Usage
 
 ```swift
+
 import imi-dolphin-livechat-ios
+
 ```
 
 #### In App Usage
@@ -44,7 +45,7 @@ let dolphinProfile = DolphinProfile(
 
 - Initialise **BaseUrl** (String), **clientId** (String) and **clientSecret** (String)
 
-- Initialise connection variable and notification listener
+- Initialise connection variable and notification center listener
 
 ```swift
 var connector: Connector?
@@ -94,6 +95,7 @@ NotificationCenter.default.addObserver(self, selector: #selector(doUpdateTypingC
         // 3. Reconnecting
         // 4. Disconnected (when quit from chat)
         // 5. Disconnected (when something error from server)
+        // 6. Filesized Limited exceed (when file upload >2mb)
         
     }
     
