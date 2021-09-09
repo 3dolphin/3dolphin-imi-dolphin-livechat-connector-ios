@@ -866,6 +866,8 @@ extension String {
 }
 
 
+//MARK:- Dolphin MessageModel
+
 public class DolphinMessage : Codable {
     
     public init(agent: String? = nil, agentAvatar: String? = nil, agentName: String? = nil, attFilename: String? = nil, attFilepath: String? = nil, attFilesize: Int? = nil, attFiletype: String? = nil, attUrl: String? = nil, customVariables: String? = nil, disconnect: Bool? = nil, event: String? = nil, inbound: Bool? = nil, iv: String? = nil, label: String? = nil, language: String? = nil, latitude: String? = nil, longitude: String? = nil, message: String? = nil, messageHash: String? = nil, outbound: Bool? = nil, salt: String? = nil, sessionId: String? = nil, token: String? = nil, transactionId: String? = nil, isUser: Bool? = nil, createdDate: Date? = nil, state: String? = nil, preCustomVar: Data? = nil)
@@ -963,6 +965,9 @@ public class DolphinMessage : Codable {
     }
     
 }
+
+
+//MARK:- Dolphin DolphinProfile Model
 
 
 public class DolphinProfile {
@@ -1522,11 +1527,9 @@ class AESEncryption {
             /* AES cryptor instance */
             let aes = try AES(key: key, blockMode: CBC(iv: ivBytes), padding: .pkcs5)
             let decryptedBytes = try aes.decrypt(messageData!.bytes)
-            let characters = decryptedBytes.map { Character(UnicodeScalar($0)) }
-            
-            decryptedMessage = String(Array(characters))
-            print(decryptedMessage)
-            return decryptedMessage
+            let descryptData = Data(decryptedBytes)
+            let decodedString = String(data: descryptData, encoding: .utf8)
+            return decodedString
         } catch let error{
             print("Error with \(error)" )
         }
