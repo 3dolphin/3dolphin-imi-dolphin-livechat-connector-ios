@@ -31,8 +31,8 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         connector = Connector.shared
-        connector?.setupConnection(baseUrl: baseUrl, clientId: clientId, clientSecrect: clientSecrect)
-        connector?.enableGetQueue(isEnable: true)
+        connector?.connect(baseUrl: baseUrl, clientId: clientId, clientSecrect: clientSecrect)
+        connector?.enableGetHistory(isEnable: true)
         connector?.constructConnector(profile: dolphinProfile)
     }
 
