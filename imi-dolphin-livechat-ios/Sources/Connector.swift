@@ -77,7 +77,7 @@ public class Connector: StompClientLibDelegate {
     /*
      setup url, clientid, and secretclient before start connection
      */
-    public func setupConnection(baseUrl: String, clientId: String, clientSecrect: String) {
+    public func connect(baseUrl: String, clientId: String, clientSecrect: String) {
         self.baseUrl = baseUrl
         self.clientId = clientId
         self.clientSecrect = clientSecrect
@@ -86,7 +86,7 @@ public class Connector: StompClientLibDelegate {
     /*
      set up enable get chat history
      */
-    public func enableGetQueue(isEnable: Bool){
+    public func enableGetHistory(isEnable: Bool){
         self.isEnableQueue = isEnable
     }
     
