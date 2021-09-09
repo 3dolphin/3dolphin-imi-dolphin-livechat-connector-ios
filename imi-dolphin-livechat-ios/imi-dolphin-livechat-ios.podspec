@@ -3,7 +3,7 @@ Pod::Spec.new do |spec|
 
 
   spec.name         = "imi-dolphin-livechat-ios"
-  spec.version      = "2.0.3"
+  spec.version      = "2.0.4"
   spec.summary      = "Description of livechat connector by 3dolphins"
 
   spec.description  = "dolphin livechat connector is a library which help user to build chat application easy using Stompclient library"
