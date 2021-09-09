@@ -60,8 +60,8 @@ let notificationTypingCondition = "com.connector.notificationTypingCondition"
 
 ```swift
 connector = Connector.shared
-connector!.setupConnection(baseUrl: baseUrl, clientId: clientId, clientSecrect: clientSecrect)
-connector?.enableGetQueue(isEnable: false)
+connector!.connect(baseUrl: baseUrl, clientId: clientId, clientSecrect: clientSecrect)
+connector?.enableGetHistory(isEnable: false)
 connector!.constructConnector(profile: dolphinProfile!)
 
 NotificationCenter.default.addObserver(self, selector: #selector(doOnReceiveMessage(_:)), name: Notification.Name(rawValue: notificationMessage), object: nil)
