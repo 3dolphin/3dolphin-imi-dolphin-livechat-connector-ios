@@ -24,10 +24,9 @@ let notificationTypingCondition = "com.connector.notificationTypingCondition"
 public class Connector: StompClientLibDelegate {
     
     // message type
-    static var MESSAGE_TYPE_TEXT = "text"
+    
     static var MESSAGE_TYPE_OPTIONS = "options"
     static var MESSAGE_TYPE_BUTTON = "buttons"
-    static var MESSAGE_TYPE_IMAGE = "image"
     static var MESSAGE_TYPE_INCOMING = "incoming"
     static var MESSAGE_TYPE_OUTGOING = "outgoing"
     let topic_ACK: String = "/topic/ack-"
@@ -64,7 +63,7 @@ public class Connector: StompClientLibDelegate {
     public static let CONSTANT_TYPE_APPLICATION: String = "application/pdf";
     public static let CONSTANT_TYPE_AUDIO: String = "audio";
     public static let CONSTANT_TYPE_VIDEO: String = "video";
-    public static let CONSTANT_TYPE_TEXT: String = "text";
+    public static let CONSTANT_TYPE_MESSAGE: String = "message";
     
     
     /*
@@ -633,11 +632,6 @@ public class Connector: StompClientLibDelegate {
                 }
             }
         }).resume()
-        
-        
-        
-        
-        
     }
     
     
@@ -647,7 +641,7 @@ public class Connector: StompClientLibDelegate {
     public func convertDataToJson(data: Any)-> Data? {
         do {
             return try! JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
-        } catch  {
+        } catch {
             print(error.localizedDescription)
         }
     }
@@ -761,7 +755,7 @@ public class Connector: StompClientLibDelegate {
             let decodedFromJson =  decoded as? [String : String]
                 
                 
-                var dataMapUser = [
+            let dataMapUser = [
                     ["gpsLocation" : decodedFromJson!["gpsLocation"]],
                     ["networkName" : decodedFromJson!["networkName"]],
                     ["networkMode" : decodedFromJson!["networkMode"]],
@@ -1128,15 +1122,12 @@ class JSONCodingKey: CodingKey {
     required init?(intValue: Int) {
         return nil
     }
-
     required init?(stringValue: String) {
         key = stringValue
     }
-
     var intValue: Int? {
         return nil
     }
-
     var stringValue: String {
         return key
     }
@@ -1473,12 +1464,9 @@ class AESEncryption {
         
         let iv = messageToDec.iv
         let salt = messageToDec.salt
-        
-        
         if messageToDec.attFilename != nil && !messageToDec.attFilename!.isEmpty {
             decryptMessage.attFilename = decrypt(message: messageToDec.attFilename!, iv: iv!, salt: salt!, key: key)
         }
-        
         if messageToDec.attFiletype != nil && !messageToDec.attFiletype!.isEmpty {
             decryptMessage.attFiletype = decrypt(message: messageToDec.attFiletype!, iv: iv!, salt: salt!, key: key)
         }
@@ -1486,7 +1474,6 @@ class AESEncryption {
         if messageToDec.attFilepath != nil && !messageToDec.attFilepath!.isEmpty {
             decryptMessage.attFilepath = decrypt(message: messageToDec.attFilepath!, iv: iv!, salt: salt!, key: key)
         }
-        
         return decryptMessage
     }
     
@@ -1494,7 +1481,6 @@ class AESEncryption {
     /*
      decrypt message
      */
-    
     public static func decrypt(message: String, iv: String, salt: String, key: String)-> String! {
         
         guard !message.isEmpty else {
@@ -1552,11 +1538,8 @@ class AESEncryption {
             
             let clientSecrect: String = clientSecret
             let accessToken: String = accessToken;
-            
             let chiperKey = (clientSecrect + accessToken).md5()
-        
             let secretKey: [UInt8] = chiperKey.md5().bytes
-            
             /* Generate random IV value and Salt Value */
             let iv = randomBytes(16)
             print("IV Before: \(iv)")
