@@ -24,10 +24,9 @@ let notificationTypingCondition = "com.connector.notificationTypingCondition"
 public class Connector: StompClientLibDelegate {
     
     // message type
-    static var MESSAGE_TYPE_TEXT = "text"
+    
     static var MESSAGE_TYPE_OPTIONS = "options"
     static var MESSAGE_TYPE_BUTTON = "buttons"
-    static var MESSAGE_TYPE_IMAGE = "image"
     static var MESSAGE_TYPE_INCOMING = "incoming"
     static var MESSAGE_TYPE_OUTGOING = "outgoing"
     let topic_ACK: String = "/topic/ack-"
@@ -46,7 +45,8 @@ public class Connector: StompClientLibDelegate {
     public var clientId: String = ""
     public var clientSecrect: String = ""
     public var isEnableQueue: Bool = false
-    
+    public var isShowTriggerMenu: Bool = false
+    public var triggerMenuMessage = ""
     public var access_token:String = ""
     public var refresh_token: String = ""
     var token: String = ""
@@ -64,7 +64,7 @@ public class Connector: StompClientLibDelegate {
     public static let CONSTANT_TYPE_APPLICATION: String = "application/pdf";
     public static let CONSTANT_TYPE_AUDIO: String = "audio";
     public static let CONSTANT_TYPE_VIDEO: String = "video";
-    public static let CONSTANT_TYPE_TEXT: String = "text";
+    public static let CONSTANT_TYPE_MESSAGE: String = "message";
     
     
     /*
@@ -97,6 +97,17 @@ public class Connector: StompClientLibDelegate {
     public func constructConnector(profile: DolphinProfile) {
         dolphinProfile = profile
         getUserToken()
+    }
+    
+    public func doShowTriggerMenu(value: Bool){
+        isShowTriggerMenu = value
+    }
+    
+    /*
+     Message for trigger menu
+     */
+    public func triggerMenu(message: String) {
+        triggerMenuMessage = message
     }
     
     
@@ -195,7 +206,9 @@ public class Connector: StompClientLibDelegate {
         
         print("socketnyaurl", socketUrl)
         token = dolphinProfile!.name! + dolphinProfile!.email! + dolphinProfile!.phoneNumber! + dolphinProfile!.uid!
-        token = AESEncryption.MD5(cipherKey: token)
+        token = token.md5()
+        
+//            AESEncryption.MD5(cipherKey: token)
         
         
         /*
@@ -234,8 +247,9 @@ public class Connector: StompClientLibDelegate {
                             token = msgDecrypted!.token!
                             if msgDecrypted?.sessionId != nil {
                                 sessionId = msgDecrypted?.sessionId
-                                DispatchQueue.main.async {
+                                DispatchQueue.main.async { [self] in
                                     NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 2)
+                                    onSendMessage(messages: triggerMenuMessage)
                                 }
                             }
                             subscribeTransaction()
@@ -256,16 +270,20 @@ public class Connector: StompClientLibDelegate {
      Response : DolphineMessage with event disconnect, read, typing and incoming
      */
     public func setEvent(msgDecriypted: DolphinMessage) {
-        if msgDecriypted.event == "diconnect" {
-            print("User is disconnected")
-        } else if msgDecriypted.event == "read" {
-            print("read")
-            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationReadMessage), object: msgDecriypted)
-        } else if msgDecriypted.event == "typing" {
-            print("typing")
-            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationTypingCondition), object: msgDecriypted)
-        } else {
-            incomingMessage(incomingMsg: msgDecriypted)
+        DispatchQueue.main.async { [self] in
+            if msgDecriypted.event == "diconnect" {
+                print("User is disconnected")
+                NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 5)
+            } else if msgDecriypted.event == "read" {
+                print("read")
+                NotificationCenter.default.post(name: Notification.Name(rawValue: notificationReadMessage), object: msgDecriypted)
+            } else if msgDecriypted.event == "typing" {
+                print("typing")
+                NotificationCenter.default.post(name: Notification.Name(rawValue: notificationTypingCondition), object: msgDecriypted)
+            } else {
+                incomingMessage(incomingMsg: msgDecriypted)
+            }
+            
         }
     }
     
@@ -283,14 +301,14 @@ public class Connector: StompClientLibDelegate {
             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: incomingMsg)
         } else {
             incomingMsg.attUrl = getUrlFile(url: incomingMsg.attUrl!)
-            if incomingMsg.attUrl != nil && (incomingMsg.attFiletype!.contains(Constants.image)) {
-                setIncomingFileTypeAndState(message: incomingMsg, state: Constants.image)
-            } else if incomingMsg.attUrl != nil && (incomingMsg.attFiletype!.contains(Constants.video)) || (incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_OCTET_STREAM)){
-                setIncomingFileTypeAndState(message: incomingMsg, state: Constants.video)
+            if incomingMsg.attUrl != nil && (incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_IMAGE)) {
+                setIncomingFileTypeAndState(message: incomingMsg, state: Connector.CONSTANT_TYPE_IMAGE)
+            } else if incomingMsg.attUrl != nil && (incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_VIDEO)) || (incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_OCTET_STREAM)){
+                setIncomingFileTypeAndState(message: incomingMsg, state: Connector.CONSTANT_TYPE_VIDEO)
             } else if incomingMsg.attUrl != nil && (incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_DOCUMENT) || incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_APPLICATION)){
-                setIncomingFileTypeAndState(message: incomingMsg, state: Constants.document)
+                setIncomingFileTypeAndState(message: incomingMsg, state: Connector.CONSTANT_TYPE_DOCUMENT)
             } else if incomingMsg.attUrl != nil && incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_AUDIO) {
-                setIncomingFileTypeAndState(message: incomingMsg, state: Constants.audio)
+                setIncomingFileTypeAndState(message: incomingMsg, state: Connector.CONSTANT_TYPE_AUDIO)
             }
             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: incomingMsg)
         }
@@ -407,8 +425,12 @@ public class Connector: StompClientLibDelegate {
             DispatchQueue.main.async { [self] in
                 for chatMessage in chatHistories {
                     if chatMessage.message != nil && chatMessage.message != "" {
-                        let dolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, state: Constants.message)
-                        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                        if(isShowTriggerMenu == false && chatMessage.message == triggerMenuMessage){
+                            continue
+                        } else{
+                            let dolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, state: Connector.CONSTANT_TYPE_MESSAGE)
+                            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                        }
                     } else {
                         var attachmentUrl: String = baseUrl
                         if chatMessage.documentLink != nil {
@@ -418,8 +440,7 @@ public class Connector: StompClientLibDelegate {
                             } else{
                                 attachmentUrl = attachmentUrl+"/webchat/in/document/"+filename+"?access_token=\(access_token)"
                             }
-                           
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Constants.document)
+                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_DOCUMENT)
                             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
                         } else if chatMessage.videoLink != nil {
                             let filename = chatMessage.videoLink!.parsingData()
@@ -428,7 +449,7 @@ public class Connector: StompClientLibDelegate {
                             } else{
                                 attachmentUrl = attachmentUrl+"/webchat/in/video/"+filename+"?access_token=\(access_token)"
                             }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Constants.video)
+                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_VIDEO)
                             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
                         } else if chatMessage.audioLink != nil {
                             let filename = chatMessage.audioLink!.parsingData()
@@ -437,7 +458,7 @@ public class Connector: StompClientLibDelegate {
                             } else{
                                 attachmentUrl = attachmentUrl+"/webchat/in/audio/"+filename+"?access_token=\(access_token)"
                             }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Constants.audio)
+                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_AUDIO)
                             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
                         } else if chatMessage.pictureLink != nil {
                             let filename = chatMessage.pictureLink!.parsingData()
@@ -446,7 +467,7 @@ public class Connector: StompClientLibDelegate {
                             } else{
                                 attachmentUrl = attachmentUrl+"/webchat/in/image/"+filename+"?access_token=\(access_token)"
                             }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Constants.image)
+                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_IMAGE)
                             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
                         }
                     }
@@ -526,7 +547,7 @@ public class Connector: StompClientLibDelegate {
         var jsonString: Data?
         
         if dataUser != nil {
-            jsonString = convertDataToJson(data: dataUser)
+            jsonString = convertDataToJson(data: dataUser as Any)
         }
          
         let messageItem = DolphinMessage()
@@ -534,18 +555,21 @@ public class Connector: StompClientLibDelegate {
         messageItem.token = token
         messageItem.message = messages
         messageItem.transactionId = tx
-        messageItem.messageHash = AESEncryption.MD5(cipherKey: messages)
+        messageItem.messageHash = messages.md5()
         messageItem.sessionId = sessionId!
         messageItem.isUser = true
         messageItem.state = "message"
         messageItem.agentName = dolphinProfile!.name!
         messageItem.preCustomVar = jsonString
-        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: messageItem)
+        
+        if(isShowTriggerMenu == false && messages == triggerMenuMessage){
+            //skip
+        } else{
+            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: messageItem)
+        }
         onSend(message: messageItem)
     }
     
-    
-
     
     /*
      Send attachment (file, image, video, and audio) to server
@@ -604,6 +628,9 @@ public class Connector: StompClientLibDelegate {
             if let responseString = String(data: responseData, encoding: .utf8){
                 print("response", responseString)
                 if responseString.contains("You can not upload") {
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 7)
+                    }
                 } else {
                     let decodedData = Data(base64Encoded: responseString)
                     do {
@@ -630,11 +657,6 @@ public class Connector: StompClientLibDelegate {
                 }
             }
         }).resume()
-        
-        
-        
-        
-        
     }
     
     
@@ -644,7 +666,7 @@ public class Connector: StompClientLibDelegate {
     public func convertDataToJson(data: Any)-> Data? {
         do {
             return try! JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
-        } catch  {
+        } catch {
             print(error.localizedDescription)
         }
     }
@@ -670,14 +692,14 @@ public class Connector: StompClientLibDelegate {
      Set mime type by state from APP
      */
     public func getMimeByState(state: String)-> String {
-        if state == Constants.image{
-            return Constants.image
-        } else if state == Constants.document {
-            return Constants.document
-        } else if state == Constants.audio{
-            return Constants.audio
+        if state == Connector.CONSTANT_TYPE_IMAGE{
+            return Connector.CONSTANT_TYPE_IMAGE
+        } else if state == Connector.CONSTANT_TYPE_DOCUMENT {
+            return Connector.CONSTANT_TYPE_DOCUMENT
+        } else if state == Connector.CONSTANT_TYPE_AUDIO{
+            return Connector.CONSTANT_TYPE_AUDIO
         } else {
-            return Constants.video
+            return Connector.CONSTANT_TYPE_VIDEO
         }
     }
     
@@ -693,13 +715,13 @@ public class Connector: StompClientLibDelegate {
         var filename: String = json["filename"] as! String
         
         if type.starts(with: Connector.CONSTANT_TYPE_IMAGE ) {
-            type = Constants.image
+            type = Connector.CONSTANT_TYPE_IMAGE
         } else if type.starts(with: Connector.CONSTANT_TYPE_DOCUMENT) {
-            type = Constants.document
+            type = Connector.CONSTANT_TYPE_DOCUMENT
         } else if type.starts(with: Connector.CONSTANT_TYPE_AUDIO){
-            type = Constants.audio
+            type = Connector.CONSTANT_TYPE_AUDIO
         } else if type.starts(with: Connector.CONSTANT_TYPE_VIDEO) {
-            type = Constants.video
+            type = Connector.CONSTANT_TYPE_VIDEO
         }
         
         filename = filename.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: "(", with: "").replacingOccurrences(of: ")", with: "")
@@ -758,7 +780,7 @@ public class Connector: StompClientLibDelegate {
             let decodedFromJson =  decoded as? [String : String]
                 
                 
-                var dataMapUser = [
+            let dataMapUser = [
                     ["gpsLocation" : decodedFromJson!["gpsLocation"]],
                     ["networkName" : decodedFromJson!["networkName"]],
                     ["networkMode" : decodedFromJson!["networkMode"]],
@@ -826,14 +848,14 @@ public class Connector: StompClientLibDelegate {
         mediaMessage.agentName = dolphinProfile!.name!
         mediaMessage.attFiletype = state
         
-        if state == Constants.image {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Constants.image)
-        } else if state == Constants.document {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Constants.document)
-        } else if state == Constants.audio {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Constants.audio)
-        } else if state == Constants.video {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Constants.video)
+        if state == Connector.CONSTANT_TYPE_IMAGE {
+            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_IMAGE)
+        } else if state == Connector.CONSTANT_TYPE_DOCUMENT {
+            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_DOCUMENT)
+        } else if state == Connector.CONSTANT_TYPE_AUDIO {
+            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_AUDIO)
+        } else if state == Connector.CONSTANT_TYPE_VIDEO {
+            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_VIDEO)
         }
         NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: mediaMessage)
         return mediaMessage
@@ -1125,15 +1147,12 @@ class JSONCodingKey: CodingKey {
     required init?(intValue: Int) {
         return nil
     }
-
     required init?(stringValue: String) {
         key = stringValue
     }
-
     var intValue: Int? {
         return nil
     }
-
     var stringValue: String {
         return key
     }
@@ -1470,12 +1489,9 @@ class AESEncryption {
         
         let iv = messageToDec.iv
         let salt = messageToDec.salt
-        
-        
         if messageToDec.attFilename != nil && !messageToDec.attFilename!.isEmpty {
             decryptMessage.attFilename = decrypt(message: messageToDec.attFilename!, iv: iv!, salt: salt!, key: key)
         }
-        
         if messageToDec.attFiletype != nil && !messageToDec.attFiletype!.isEmpty {
             decryptMessage.attFiletype = decrypt(message: messageToDec.attFiletype!, iv: iv!, salt: salt!, key: key)
         }
@@ -1483,7 +1499,6 @@ class AESEncryption {
         if messageToDec.attFilepath != nil && !messageToDec.attFilepath!.isEmpty {
             decryptMessage.attFilepath = decrypt(message: messageToDec.attFilepath!, iv: iv!, salt: salt!, key: key)
         }
-        
         return decryptMessage
     }
     
@@ -1491,7 +1506,6 @@ class AESEncryption {
     /*
      decrypt message
      */
-    
     public static func decrypt(message: String, iv: String, salt: String, key: String)-> String! {
         
         guard !message.isEmpty else {
@@ -1549,11 +1563,8 @@ class AESEncryption {
             
             let clientSecrect: String = clientSecret
             let accessToken: String = accessToken;
-            
             let chiperKey = (clientSecrect + accessToken).md5()
-        
             let secretKey: [UInt8] = chiperKey.md5().bytes
-            
             /* Generate random IV value and Salt Value */
             let iv = randomBytes(16)
             print("IV Before: \(iv)")
@@ -1655,13 +1666,6 @@ class AESEncryption {
         
     }
     
-    ///
-    /// Genrate random string based on input length
-    ///
-    public static func randomString(length: Int) -> String {
-      let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-      return String((0..<length).map{ _ in letters.randomElement()! })
-    }
     
     ///
     /// Encrypt given data
@@ -1686,38 +1690,6 @@ class AESEncryption {
         }
         return ""
     }
-    
-    
-    public static func MD5(cipherKey: String) -> String{
-        let length = Int(CC_MD5_DIGEST_LENGTH)
-        var digest = [UInt8](repeating: 0, count: length)
-        
-        
-        if let d = cipherKey.data(using: String.Encoding.utf8) {
-            _ = d.withUnsafeBytes { (body: UnsafePointer<UInt8>) in
-                CC_MD5(body, CC_LONG(d.count), &digest)
-            }
-        }
-        return (0..<length).reduce(""){
-            $0+String(format: "%02x", digest[$1])
-        }
-        
-    }
+
 
 }
-
-
-public class Constants {
-    
-    public static var video: String = "video"
-    public static var image: String = "image"
-    public static var document: String = "document"
-    public static var message: String = "message"
-    public static var audio: String = "audio"
-    
-    
-    
-}
-
-
-
