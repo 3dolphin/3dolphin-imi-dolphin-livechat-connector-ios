@@ -270,16 +270,20 @@ public class Connector: StompClientLibDelegate {
      Response : DolphineMessage with event disconnect, read, typing and incoming
      */
     public func setEvent(msgDecriypted: DolphinMessage) {
-        if msgDecriypted.event == "diconnect" {
-            print("User is disconnected")
-        } else if msgDecriypted.event == "read" {
-            print("read")
-            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationReadMessage), object: msgDecriypted)
-        } else if msgDecriypted.event == "typing" {
-            print("typing")
-            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationTypingCondition), object: msgDecriypted)
-        } else {
-            incomingMessage(incomingMsg: msgDecriypted)
+        DispatchQueue.main.async { [self] in
+            if msgDecriypted.event == "diconnect" {
+                print("User is disconnected")
+                NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 5)
+            } else if msgDecriypted.event == "read" {
+                print("read")
+                NotificationCenter.default.post(name: Notification.Name(rawValue: notificationReadMessage), object: msgDecriypted)
+            } else if msgDecriypted.event == "typing" {
+                print("typing")
+                NotificationCenter.default.post(name: Notification.Name(rawValue: notificationTypingCondition), object: msgDecriypted)
+            } else {
+                incomingMessage(incomingMsg: msgDecriypted)
+            }
+            
         }
     }
     
@@ -543,7 +547,7 @@ public class Connector: StompClientLibDelegate {
         var jsonString: Data?
         
         if dataUser != nil {
-            jsonString = convertDataToJson(data: dataUser)
+            jsonString = convertDataToJson(data: dataUser as Any)
         }
          
         let messageItem = DolphinMessage()
@@ -624,6 +628,9 @@ public class Connector: StompClientLibDelegate {
             if let responseString = String(data: responseData, encoding: .utf8){
                 print("response", responseString)
                 if responseString.contains("You can not upload") {
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 7)
+                    }
                 } else {
                     let decodedData = Data(base64Encoded: responseString)
                     do {
