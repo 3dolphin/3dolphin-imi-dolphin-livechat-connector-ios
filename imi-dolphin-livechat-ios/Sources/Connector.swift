@@ -45,7 +45,8 @@ public class Connector: StompClientLibDelegate {
     public var clientId: String = ""
     public var clientSecrect: String = ""
     public var isEnableQueue: Bool = false
-    
+    public var isShowTriggerMenu: Bool = false
+    public var triggerMenuMessage = ""
     public var access_token:String = ""
     public var refresh_token: String = ""
     var token: String = ""
@@ -96,6 +97,17 @@ public class Connector: StompClientLibDelegate {
     public func constructConnector(profile: DolphinProfile) {
         dolphinProfile = profile
         getUserToken()
+    }
+    
+    public func doShowTriggerMenu(value: Bool){
+        isShowTriggerMenu = value
+    }
+    
+    /*
+     Message for trigger menu
+     */
+    public func triggerMenu(message: String) {
+        triggerMenuMessage = message
     }
     
     
@@ -233,8 +245,9 @@ public class Connector: StompClientLibDelegate {
                             token = msgDecrypted!.token!
                             if msgDecrypted?.sessionId != nil {
                                 sessionId = msgDecrypted?.sessionId
-                                DispatchQueue.main.async {
+                                DispatchQueue.main.async { [self] in
                                     NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 2)
+                                    onSendMessage(messages: triggerMenuMessage)
                                 }
                             }
                             subscribeTransaction()
@@ -536,18 +549,21 @@ public class Connector: StompClientLibDelegate {
         messageItem.token = token
         messageItem.message = messages
         messageItem.transactionId = tx
-        messageItem.messageHash = AESEncryption.MD5(cipherKey: messages)
+        messageItem.messageHash = messages.md5()
         messageItem.sessionId = sessionId!
         messageItem.isUser = true
         messageItem.state = "message"
         messageItem.agentName = dolphinProfile!.name!
         messageItem.preCustomVar = jsonString
-        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: messageItem)
+        
+        if(isShowTriggerMenu == false && messages == triggerMenuMessage){
+            //skip
+        } else{
+            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: messageItem)
+        }
         onSend(message: messageItem)
     }
     
-    
-
     
     /*
      Send attachment (file, image, video, and audio) to server
