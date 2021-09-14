@@ -206,7 +206,9 @@ public class Connector: StompClientLibDelegate {
         
         print("socketnyaurl", socketUrl)
         token = dolphinProfile!.name! + dolphinProfile!.email! + dolphinProfile!.phoneNumber! + dolphinProfile!.uid!
-        token = AESEncryption.MD5(cipherKey: token)
+        token = token.md5()
+        
+//            AESEncryption.MD5(cipherKey: token)
         
         
         /*
