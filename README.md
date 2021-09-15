@@ -96,6 +96,7 @@ NotificationCenter.default.addObserver(self, selector: #selector(doUpdateTypingC
         // 4. Disconnected (when quit from chat)
         // 5. Disconnected (when something error from server)
         // 6. Filesized Limited exceed (when file upload >2mb)
+        // 7. Can not upload because of difference format file
         
     }
     
@@ -112,46 +113,7 @@ NotificationCenter.default.addObserver(self, selector: #selector(doUpdateTypingC
     }
 
 ```
-## Model Message
 
-```swift
-struct MessageModel {
-    var text: String?
-    var isAnswer: Bool?
-    var name: String
-    var createdDate: Date
-    var mediaLink: String?
-    var mediaType: String?
-    var read: Bool?
-    var transactionId: String?
-    var state: String?
-    var filename: String?
-    
-    init(text: String? = nil,
-         isAnswer: Bool,
-         name: String,
-         createdDate: Date,
-         mediaLink: String? = nil,
-         mediaType: String? = nil,
-         read: Bool? = nil,
-         transactionId: String? = nil,
-         state: String,
-         filename: String? = nil
-    ) {
-        self.text = text
-        self.isAnswer = isAnswer
-        self.name = name
-        self.createdDate = createdDate
-        self.state = state
-        self.mediaLink = mediaLink
-        self.read = read
-        self.transactionId = transactionId
-        self.mediaType = mediaType
-        self.filename = filename
-    }
-}
-
-```
 
 ## On Send Message
 
@@ -165,14 +127,14 @@ But you can leave it nil. For example:
     ] as AnyObject
 ```
 
-- Send Text
+### Send Text
 
 ```swift
 connector?.onSendMessage(messages: "TEXT_MESSAGE_STRING", dataUser: sample)
 ```
 
 
-- Send Image
+### Send Image
 
 Prerequisite when sending image
 
@@ -185,7 +147,7 @@ connector!.sendAttachment(fileNsUrl: "IMAGE_FILEPATH", state: state!, dataUser: 
 ```
 
 
-- Send Video
+### Send Video
 
 Prerequisite when sending video
 
@@ -197,7 +159,7 @@ Prerequisite when sending video
 connector!.sendAttachment(fileNsUrl: "VIDEO_FILEPATH", state: state!, dataUser: sample)
 ```
 
-- Send Audio/Document
+### Send Audio/Document
 
 Prerequisite when sending video
 
@@ -209,5 +171,31 @@ Prerequisite when sending video
  connector?.sendAttachment(fileNsUrl: AUDIO/DOCUMENT_FILEPATH as NSURL, state: state!, dataUser: sample)
 ```
 
+## File Url
+
+- For several properties like carousel,photo, document, audio, video and another message which have media URL, you may load it by using this format.
+
+### When message comes from **agent** then you have to use "**out/type**" like :
+
+```swift
+ var imageUrl = baseUrl/webchat/out/image/filename?access_token="accessToken"
+ var documentUrl = baseUrl/webchat/out/document/filename?access_token="accessToken"
+```
+and so on for video and audio.
+
+### When message comes from **customer** then you have to use "**in/type**" like :
+
+```swift
+ var imageUrl = baseUrl/webchat/in/image/filename?access_token="accessToken"
+ var documentUrl = baseUrl/webchat/in/document/filename?access_token="accessToken"
+```
+and so on for video and audio.
+
+For carousel image url you may use format :
+```swift
+ var imageUrl = baseUrl/webchat/out/button/filename?access_token="accessToken"
+```
+
+Sept 15, 2021
 
 To see more detail about how to implement this library, you can see in Example folder
