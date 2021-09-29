@@ -8,15 +8,13 @@
 import Foundation
 
 
-public struct TokenModel: Codable {
+public class TokenModel: Codable {
     
-    var accessToken:String?
-    var tokenType: String?
-    var refreshToken: String?
-    var expiresIn: Int?
-    var scope: String?
-    
-    init() {}
+    public var accessToken:String?
+    public var tokenType: String?
+    public var refreshToken: String?
+    public var expiresIn: Int?
+    public var scope: String?
     
     
     enum CodingKeys: String, CodingKey {
@@ -26,4 +24,5 @@ public struct TokenModel: Codable {
         case expiresIn = "expires_in"
         case scope = "scope"
     }
+    
 }

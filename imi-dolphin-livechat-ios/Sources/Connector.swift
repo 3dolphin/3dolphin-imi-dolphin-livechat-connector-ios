@@ -48,8 +48,6 @@ public class Connector: StompClientLibDelegate {
     public var isEnableQueue: Bool = false
     public var isShowTriggerMenu: Bool = false
     public var triggerMenuMessage = ""
-    public var access_token:String = ""
-    public var refresh_token: String = ""
     var token: String = ""
     var isConnecting: Bool = false
     var isConnected: Bool = false
@@ -66,7 +64,10 @@ public class Connector: StompClientLibDelegate {
     public static let CONSTANT_TYPE_AUDIO: String = "audio";
     public static let CONSTANT_TYPE_VIDEO: String = "video";
     public static let CONSTANT_TYPE_MESSAGE: String = "message";
-    public var tokenModel: TokenModel?
+    public var access_token = ""
+    public var refresh_token = ""
+    public var tokenModel: TokenModel = TokenModel()
+    var subsystem = Bundle.main.bundleIdentifier!
     
     /*
      Initilisation connector
@@ -100,6 +101,10 @@ public class Connector: StompClientLibDelegate {
         getUserToken()
     }
     
+    
+    /*
+     enable show trigger menu
+     */
     public func doShowTriggerMenu(value: Bool){
         isShowTriggerMenu = value
     }
@@ -119,45 +124,32 @@ public class Connector: StompClientLibDelegate {
      */
     public func getUserToken(){
         token = "\(clientId):\(clientSecrect)".data(using: .utf8)?.base64EncodedString() ?? ""
-        print("currentToken ", token)
         let url = URL(string: baseUrl+"/oauth/token?grant_type=password&username=\(clientId)&password=\(clientSecrect)")!
+        let log = OSLog(subsystem: subsystem, category: "Access Token")
         
-        ApiService.getAccessToken(url: url, token: token) {result, error in
-            
-            if let result = result {
-                self.tokenModel = result
-                print("resultnya adalah :", self.tokenModel?.accessToken)
-                self.access_token = (self.tokenModel?.accessToken!)!
-                self.refresh_token = (self.tokenModel?.refreshToken!)!
+        let group = DispatchGroup()
+        group.enter()
+        
+        ApiService.getAccessToken(url: url, token: token) { result, error in
+            if result != nil {
+                self.tokenModel = result!
+                self.access_token = result!.accessToken!
+                self.refresh_token = result!.refreshToken!
+                os_log("Success get access token : %@", log: log, type: .info, self.access_token)
+                group.leave()
+                print("leave")
+                group.notify(queue: .main) {
+                    print("finished all request")
+                }
                 self.refreshAccessToken()
+               
             } else{
-                print("failed to get access token")
+                os_log("Failed get access token", log: log, type: .error)
+                group.leave()
+                print("leave")
             }
-            
         }
-//
-//        var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 10)
-//        request.httpMethod = "POST"
-//        request.addValue("application/json", forHTTPHeaderField: "Accept")
-//        request.addValue("Basic \(token)", forHTTPHeaderField: "Authorization")
-//        let dataTask = URLSession.shared.dataTask(with: request, completionHandler: { [self] data, response, error in
-//            guard let _ = data, error == nil else {
-//                print(error?.localizedDescription ?? "No Data")
-//                return
-//            }
-//            print("response dari server", String(data: data!, encoding: String.Encoding.utf8))
-//            let responseJSON = try? JSONSerialization.jsonObject(with: data!, options: []) as? NSDictionary
-//            if(responseJSON?["access_token"] != nil) {
-//                self.access_token = responseJSON?["access_token"] as! String
-//            }
-//            if(responseJSON?["refresh_token"] != nil) {
-//                self.refresh_token = responseJSON?["refresh_token"] as! String
-//                refreshAccessToken()
-//            }
-//            self.isConnecting = true
-//        })
-//        dataTask.resume()
-//
+        
     }
     
     /*
@@ -167,69 +159,35 @@ public class Connector: StompClientLibDelegate {
      */
     public func refreshAccessToken(){
         
-        print("aku pengen print ", self.tokenModel?.accessToken)
+        let log = OSLog(subsystem: subsystem, category: "Refresh Token")
         let url = URL(string: baseUrl+"/oauth/token?grant_type=refresh_token&refresh_token=\(refresh_token)")!
-        var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 10)
-        request.httpMethod="POST"
-        request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Basic \(token)", forHTTPHeaderField: "Authorization")
-    
-        let dataTask = URLSession.shared.dataTask(with: request, completionHandler: {
-            data, response, error in
-            guard let _ = data, error == nil else {
-                print(error?.localizedDescription ?? "No Data")
-                return
+        ApiService.getRefreshToken(url: url, token: token) { [self] result, error in
+            if result != nil
+            {
+                tokenModel = result!
+                access_token = result!.accessToken!
+                refresh_token = result!.refreshToken!
+                os_log("Success get refresh token", log: log, type: .info)
+                doConnectToStomp()
+                isConnecting = true;
+                DispatchQueue.main.async {
+                                NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 1)
+                }
+            } else{
+                os_log("Failed get refresh token", log: log, type: .error)
             }
-            let responseJSON = try? JSONSerialization.jsonObject(with: data!, options: []) as? NSDictionary
-            if(responseJSON?["access_token"] != nil) {
-                self.access_token = responseJSON?["access_token"] as! String
-                print("getUserToken() accessToken: " + self.access_token)
-            }
-            if(responseJSON?["refresh_token"] != nil) {
-                self.refresh_token = responseJSON?["refresh_token"] as! String
-                print("getUserToken() refreshAccessToken: " + self.refresh_token)
-            }
-            self.isConnecting = true
-            self.doConnectToStomp()
-            
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 1)
-            }
-        })
-        dataTask.resume()
+        }
     }
     
-    
-
     /*
     Starting connection to web socket
-     Param :
-        access_token
-        username
-        email
-        phone
-        uid
      */
     public func doConnectToStomp(){
-        print("doConnectToWS()");
-        var cutHttp: String=""
-        if baseUrl.hasPrefix("http://") {
-            let index = baseUrl.index(baseUrl.startIndex, offsetBy: 7)
-            cutHttp = String(baseUrl[index...])
-        } else {
-            let index = baseUrl.index(baseUrl.startIndex, offsetBy: 8)
-            cutHttp = String(baseUrl[index...])
-        }
-        print("current access", access_token)
+        let cutHttp: String = baseUrl.truncateUrl()
         let completedWSURL = "wss://\(cutHttp)/webchat/websocket?access_token=\(access_token)"
         socketUrl = NSURL(string: completedWSURL)!
-        
-        print("socketnyaurl", socketUrl)
         token = dolphinProfile!.name! + dolphinProfile!.email! + dolphinProfile!.phoneNumber! + dolphinProfile!.uid!
         token = token.md5()
-        
-//            AESEncryption.MD5(cipherKey: token)
-        
         
         /*
          Call request to connect to websocket
