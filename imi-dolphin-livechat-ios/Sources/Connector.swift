@@ -210,10 +210,11 @@ public class Connector: StompClientLibDelegate {
         - Response from Message topic
      */
     public func stompClient(client: StompClientLib!, didReceiveMessageWithJSONBody jsonBody: AnyObject?, akaStringBody stringBody: String?, withHeader header: [String : String]?, withDestination destination: String) {
-        print("String Body : \(stringBody ?? "nil")")
+        
+        let log = OSLog(subsystem: subsystem, category: "Stomp Client Life")
         let data = Data(stringBody!.utf8)
         if destination.contains("/topic/ack") {
-            print("ack response server")
+            os_log("ACK response message: message sent to server", log: log, type: .info)
         } else {
             do{
                 let onReceivingMessage: DolphinMessage = try JSONDecoder().decode(DolphinMessage.self, from: data)
@@ -223,10 +224,13 @@ public class Connector: StompClientLibDelegate {
                     if msgDecrypted!.token != nil {
                         if msgDecrypted?.message == nil && msgDecrypted!.event == nil {
                             token = msgDecrypted!.token!
+                            
+                            print("current token", token)
                             if msgDecrypted?.sessionId != nil {
                                 sessionId = msgDecrypted?.sessionId
                                 DispatchQueue.main.async { [self] in
                                     NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 2)
+                                    os_log("Successfully subscribe message", log: log, type: .info)
                                     onSendMessage(messages: triggerMenuMessage)
                                 }
                             }
@@ -237,7 +241,7 @@ public class Connector: StompClientLibDelegate {
                     }
                 }
             } catch let error as NSError {
-                print("Failed to load: \(error.localizedDescription)")
+                os_log("Failed to parsing message cause of: %@", log: log, type: .error, error.localizedDescription)
             }
         }
         
@@ -248,19 +252,22 @@ public class Connector: StompClientLibDelegate {
      Response : DolphineMessage with event disconnect, read, typing and incoming
      */
     public func setEvent(msgDecriypted: DolphinMessage) {
+        let log = OSLog(subsystem: subsystem, category: "Event")
         DispatchQueue.main.async { [self] in
-            if msgDecriypted.event == "diconnect" {
-                print("User is disconnected")
+            if msgDecriypted.event == Constant.disconnectEvent {
+                os_log("Disconnect event", log: log, type: .info)
                 NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 5)
-            } else if msgDecriypted.event == "read" {
-                print("read")
+            } else if msgDecriypted.event == Constant.readEvent {
+                os_log("Read event", log: log, type: .info)
                 NotificationCenter.default.post(name: Notification.Name(rawValue: notificationReadMessage), object: msgDecriypted)
-            } else if msgDecriypted.event == "typing" {
-                print("typing")
+            } else if msgDecriypted.event == Constant.typingEvent {
+                os_log("Typing event", log: log, type: .info)
                 NotificationCenter.default.post(name: Notification.Name(rawValue: notificationTypingCondition), object: msgDecriypted)
-            } else if msgDecriypted.event == "unassigned" {
-                print("unassigned")
+            } else if msgDecriypted.event == Constant.unassignedEvent {
+                
+                os_log("Unassigned event", log: log, type: .info)
             } else {
+                os_log("Message event", log: log, type: .info)
                 incomingMessage(incomingMsg: msgDecriypted)
             }
             
@@ -330,7 +337,8 @@ public class Connector: StompClientLibDelegate {
                 Broadcast notification disconnected
      */
     public func stompClientDidDisconnect(client: StompClientLib!) {
-        print("stompClientDidDisconnect")
+        let log = OSLog(subsystem: subsystem, category: "Stomp Client Disconnected")
+        os_log("Disconnected from StompClient", log: log, type: .info)
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 4)
         }
@@ -381,7 +389,6 @@ public class Connector: StompClientLibDelegate {
     }
     
     
-    
     /*
      Get chat history
      Hit API get history conversation
@@ -389,12 +396,13 @@ public class Connector: StompClientLibDelegate {
      */
     public func getChatHistory()-> Void {
         var socialid: String = dolphinProfile!.phoneNumber!+"-"+dolphinProfile!.name!
+        print("social id", socialid)
         if !(dolphinProfile!.customerId == "") {
             socialid = dolphinProfile!.customerId!}
         let url = URL(string: baseUrl+"/webchat/conversation?contactid=\(socialid)&access_token=\(access_token)")!
+        
         var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 10)
         request.httpMethod = "GET"
-        /// Call api request
         let dataTask = URLSession.shared.dataTask(with: request, completionHandler: { data, response, error in
             guard let _ = data, error == nil else {
                 print(error?.localizedDescription ?? "No Data")
@@ -412,49 +420,40 @@ public class Connector: StompClientLibDelegate {
                             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
                         }
                     } else {
-                        var attachmentUrl: String = baseUrl
+                        
                         if chatMessage.documentLink != nil {
                             let filename = chatMessage.documentLink!.parsingData()
-                            if chatMessage.accountName != dolphinProfile?.name {
-                                attachmentUrl = attachmentUrl+"/webchat/out/document/"+filename+"?access_token=\(access_token)"
-                            } else{
-                                attachmentUrl = attachmentUrl+"/webchat/in/document/"+filename+"?access_token=\(access_token)"
-                            }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_DOCUMENT)
-                            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                            broadcastChatHistory(chatMessage: chatMessage, filename: filename, accountName: chatMessage.accountName!, state: Connector.CONSTANT_TYPE_DOCUMENT)
                         } else if chatMessage.videoLink != nil {
                             let filename = chatMessage.videoLink!.parsingData()
-                            if chatMessage.accountName != dolphinProfile?.name {
-                                attachmentUrl = attachmentUrl+"/webchat/out/video/"+filename+"?access_token=\(access_token)"
-                            } else{
-                                attachmentUrl = attachmentUrl+"/webchat/in/video/"+filename+"?access_token=\(access_token)"
-                            }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_VIDEO)
-                            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                            broadcastChatHistory(chatMessage: chatMessage, filename: filename, accountName: chatMessage.accountName!, state: Connector.CONSTANT_TYPE_VIDEO)
                         } else if chatMessage.audioLink != nil {
                             let filename = chatMessage.audioLink!.parsingData()
-                            if chatMessage.accountName != dolphinProfile?.name {
-                                attachmentUrl = attachmentUrl+"/webchat/out/audio/"+filename+"?access_token=\(access_token)"
-                            } else{
-                                attachmentUrl = attachmentUrl+"/webchat/in/audio/"+filename+"?access_token=\(access_token)"
-                            }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_AUDIO)
-                            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                            broadcastChatHistory(chatMessage: chatMessage, filename: filename, accountName: chatMessage.accountName!, state: Connector.CONSTANT_TYPE_AUDIO)
                         } else if chatMessage.pictureLink != nil {
                             let filename = chatMessage.pictureLink!.parsingData()
-                            if chatMessage.accountName != dolphinProfile?.name {
-                                attachmentUrl = attachmentUrl+"/webchat/out/image/"+filename+"?access_token=\(access_token)"
-                            } else{
-                                attachmentUrl = attachmentUrl+"/webchat/in/image/"+filename+"?access_token=\(access_token)"
-                            }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_IMAGE)
-                            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                            broadcastChatHistory(chatMessage: chatMessage, filename: filename, accountName: chatMessage.accountName!, state: Connector.CONSTANT_TYPE_IMAGE)
                         }
                     }
                  }
             }
         })
         dataTask.resume()
+    }
+    
+    
+    /*
+     broadcast chat history message with fileURL
+     */
+    func broadcastChatHistory(chatMessage: DolphinChatHistory, filename: String, accountName: String, state: String) {
+        var attachmentUrl: String = baseUrl
+        if accountName != dolphinProfile?.name {
+            attachmentUrl = attachmentUrl+"/webchat/out/\(state)/"+filename+"?access_token=\(access_token)"
+        } else{
+            attachmentUrl = attachmentUrl+"/webchat/in/\(state)/"+filename+"?access_token=\(access_token)"
+        }
+        let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: state)
+        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
     }
     
     
@@ -466,10 +465,6 @@ public class Connector: StompClientLibDelegate {
         let id = wsMessage
         let ack = wsMessage
         let headers = ["accessToken": access_token, "ack" : ack!, "id" : id! ]
-        
-        /*
-         Start subscribe with header
-         */
         socketClient.subscribeWithHeader(destination: wsMessage!, withHeader: headers)
     }
     
@@ -492,9 +487,6 @@ public class Connector: StompClientLibDelegate {
         let headers = ["ack": "client",
                        "id" : id,
                        "accessToken" : access_token]
-        /*
-         Subscribe ACK with header
-         */
         socketClient.subscribeWithHeader(destination: wsAck, withHeader: headers)
     }
     
@@ -556,7 +548,7 @@ public class Connector: StompClientLibDelegate {
                 Send message to server
      */
     public func sendAttachment(fileNsUrl: NSURL?, state: String, dataUser: AnyObject? = nil) {
-        
+        let log = OSLog(subsystem: subsystem, category: "Send Attachment")
         var jsonString: Data?
         
         if dataUser != nil {
@@ -565,76 +557,32 @@ public class Connector: StompClientLibDelegate {
         
         let mediaImage: DolphinMessage = preRenderFileMessage(fileNsUrl: fileNsUrl!, state: state)
         let url = URL(string: "\(baseUrl)/webchat/upload")
-        // generate boundary string using a unique per-app string
-        let boundary = "--------------\(UUID().uuidString)"
-        let session = URLSession.shared
-        let mimeType = getMimeByState(state: state)
-        var data: Data = convertToDataByMime(fileNsUrl: fileNsUrl!, mimeType: mimeType)
-        let fileName: String = (fileNsUrl?.lastPathComponent)!
-        // Set the URLRequest to POST and to the specified URL
-        var urlRequest = URLRequest(url: url!)
-        urlRequest.httpMethod = "POST"
-
-        // Set Content-Type Header to multipart/form-data, this is equivalent to submitting form data with file upload in a web browser
-        // And the boundary is also set here
-        urlRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("Bearer \(access_token)", forHTTPHeaderField: "Authorization")
-
-        // Add the image data to the raw http request data
-        data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
-        data.append("content-disposition: form-data; name=\"attachment\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
-        data.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-        data.append(data)
-    
-        // Add the image data to the raw http request data
-        data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
-        data.append("content-disposition: form-data; name=\"sessionId\"\r\n\r\n".data(using: .utf8)!)
-        data.append("\(String(describing: sessionId))\r\n".data(using: .utf8)!)
-        data.append("--\(boundary)--\r\n".data(using: .utf8)!)
         
-        // Send a POST request to the URL, with the data we created earlier
-        session.uploadTask(with: urlRequest, from: data, completionHandler: { [self] responseData, response, error in
-            if error != nil {
-                print(error as Any)
-            }
-            if let response = response as? HTTPURLResponse {
-                print("statusCode: \(response.statusCode)")
-            }
-            guard let responseData = responseData else {
-                print("no response data")
-                return
-            }
-            if let responseString = String(data: responseData, encoding: .utf8){
-                if responseString.contains("You can not upload") {
+        ApiService.sendAttachmentMessage(url: url!, fileNsURL: fileNsUrl!, state: state, accessToken: access_token, sessionId: sessionId!) { [self] fileResponse, stringResponse, error in
+            
+            if fileResponse != nil {
+                mediaImage.attFilepath = fileResponse?.filepath
+                mediaImage.attFilename = fileResponse?.filename
+                mediaImage.attFiletype = fileResponse?.fileType
+                mediaImage.attUrl = getAttachmentURL(fileResponse: fileResponse!)
+                mediaImage.preCustomVar = jsonString
+                onSend(message: mediaImage)
+                
+            } else if stringResponse != nil {
+                if stringResponse!.contains(Constant.cannotUpload){
                     DispatchQueue.main.async {
                         NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 7)
                     }
-                } else {
-                    let decodedData = Data(base64Encoded: responseString)
-                    do {
-                        let jsonObject = try JSONSerialization.jsonObject(with: decodedData!, options: .allowFragments) as! NSDictionary
-
-                        if(jsonObject["message"] != nil){
-                            if(jsonObject["message"] as! String == "Filesize limit exceeded"){
-                                DispatchQueue.main.async {
-                                    NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 6)
-                                }
-                            }
-                        } else{
-                            mediaImage.attFilepath = (jsonObject["filepath"] as! String)
-                            mediaImage.attFilename = (jsonObject["filename"] as! String)
-                            mediaImage.attFiletype = (jsonObject["filetype"] as! String)
-                            mediaImage.attUrl = getAttachmentURL(json: jsonObject)
-                            mediaImage.preCustomVar = jsonString
-                            onSend(message: mediaImage)
-                            print(jsonObject)
-                        }
-                    } catch let parsingError {
-                        print("Error", parsingError)
+                } else{
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 6)
                     }
                 }
+            } else{
+                os_log("Failed send attachment with error : %@", log: log, type: .error, error.debugDescription)
             }
-        }).resume()
+        }
+        
     }
     
     
@@ -650,61 +598,12 @@ public class Connector: StompClientLibDelegate {
     }
     
     
-    
-    /*
-     Convert data file to mime
-     */
-    public func convertToDataByMime(fileNsUrl: NSURL,  mimeType: String)->Data {
-        
-        var resData = Data()
-        do {
-            resData = try Data(contentsOf: fileNsUrl as URL)
-        } catch {
-            print("Error to convert data")
-        }
-        return resData
-    }
-    
-    
-    /*
-     Set mime type by state from APP
-     */
-    public func getMimeByState(state: String)-> String {
-        if state == Connector.CONSTANT_TYPE_IMAGE{
-            return Connector.CONSTANT_TYPE_IMAGE
-        } else if state == Connector.CONSTANT_TYPE_DOCUMENT {
-            return Connector.CONSTANT_TYPE_DOCUMENT
-        } else if state == Connector.CONSTANT_TYPE_AUDIO{
-            return Connector.CONSTANT_TYPE_AUDIO
-        } else {
-            return Connector.CONSTANT_TYPE_VIDEO
-        }
-    }
-    
-    
     /*
      Get attachment URL after receiving from minio response
      */
-    public func getAttachmentURL(json: NSDictionary)-> String {
-        
-        var type: String = json["filetype"] as! String
-        var filename: String = json["filename"] as! String
-        
-        if type.starts(with: Connector.CONSTANT_TYPE_IMAGE ) {
-            type = Connector.CONSTANT_TYPE_IMAGE
-        } else if type.starts(with: Connector.CONSTANT_TYPE_DOCUMENT) {
-            type = Connector.CONSTANT_TYPE_DOCUMENT
-        } else if type.starts(with: Connector.CONSTANT_TYPE_AUDIO){
-            type = Connector.CONSTANT_TYPE_AUDIO
-        } else if type.starts(with: Connector.CONSTANT_TYPE_VIDEO) {
-            type = Connector.CONSTANT_TYPE_VIDEO
-        }
-        
-        filename = filename.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: "(", with: "").replacingOccurrences(of: ")", with: "")
-        
-        print(" URLNYA : \(baseUrl)/webchat/in/\(type)/\(filename)")
-        return "\(baseUrl)/webchat/in/\(type)/\(filename)"
-        
+    public func getAttachmentURL(fileResponse: FileResponse)-> String {
+        let state = fileResponse.fileType!.getFileType()
+        return "\(baseUrl)/webchat/in/\(state)/\(fileResponse.filename!)"
     }
     
     
@@ -754,8 +653,6 @@ public class Connector: StompClientLibDelegate {
             let decoded = try JSONSerialization.jsonObject(with: dataUser, options: [])
             
             let decodedFromJson =  decoded as? [String : String]
-                
-                
             let dataMapUser = [
                     ["gpsLocation" : decodedFromJson!["gpsLocation"]],
                     ["networkName" : decodedFromJson!["networkName"]],
@@ -823,16 +720,7 @@ public class Connector: StompClientLibDelegate {
         mediaMessage.sessionId = sessionId
         mediaMessage.agentName = dolphinProfile!.name!
         mediaMessage.attFiletype = state
-        
-        if state == Connector.CONSTANT_TYPE_IMAGE {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_IMAGE)
-        } else if state == Connector.CONSTANT_TYPE_DOCUMENT {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_DOCUMENT)
-        } else if state == Connector.CONSTANT_TYPE_AUDIO {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_AUDIO)
-        } else if state == Connector.CONSTANT_TYPE_VIDEO {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_VIDEO)
-        }
+        setIncomingFileTypeAndState(message: mediaMessage, state: state)
         NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: mediaMessage)
         return mediaMessage
     }
@@ -858,255 +746,28 @@ extension String {
             print(error)
         }
         return dictonary!["filename"]! as! String
-        
+    }
+    
+    func truncateUrl()-> String{
+        if self.starts(with: "http://") {
+            let index = self.index(self.startIndex, offsetBy: 7)
+            return String(self[index...])
+        } else {
+            let index = self.index(self.startIndex, offsetBy: 8)
+            return String(self[index...])
+        }
+    }
+    
+    func getFileType()-> String{
+        if self.contains(Connector.CONSTANT_TYPE_IMAGE){
+            return Connector.CONSTANT_TYPE_IMAGE
+        } else if self.contains(Connector.CONSTANT_TYPE_DOCUMENT) || self.contains( Connector.CONSTANT_TYPE_APPLICATION){
+            return Connector.CONSTANT_TYPE_DOCUMENT
+        } else if self.contains(Connector.CONSTANT_TYPE_VIDEO) || self.contains( Connector.CONSTANT_TYPE_OCTET_STREAM){
+            return Connector.CONSTANT_TYPE_VIDEO
+        } else {
+            return Connector.CONSTANT_TYPE_AUDIO
+        }
     }
     
 }
-
-
-
-
-// MARK: - Encode/decode helpers
-
-public class JSONNull: Codable, Hashable {
-
-    public static func == (lhs: JSONNull, rhs: JSONNull) -> Bool {
-        return true
-    }
-
-    public var hashValue: Int {
-        return 0
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        // No-op
-    }
-
-    public init() {}
-
-    public required init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if !container.decodeNil() {
-            throw DecodingError.typeMismatch(JSONNull.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for JSONNull"))
-        }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encodeNil()
-    }
-}
-
-class JSONCodingKey: CodingKey {
-    let key: String
-
-    required init?(intValue: Int) {
-        return nil
-    }
-    required init?(stringValue: String) {
-        key = stringValue
-    }
-    var intValue: Int? {
-        return nil
-    }
-    var stringValue: String {
-        return key
-    }
-}
-
-public class JSONAny: Codable {
-
-    public let value: Any
-
-    static func decodingError(forCodingPath codingPath: [CodingKey]) -> DecodingError {
-        let context = DecodingError.Context(codingPath: codingPath, debugDescription: "Cannot decode JSONAny")
-        return DecodingError.typeMismatch(JSONAny.self, context)
-    }
-
-    static func encodingError(forValue value: Any, codingPath: [CodingKey]) -> EncodingError {
-        let context = EncodingError.Context(codingPath: codingPath, debugDescription: "Cannot encode JSONAny")
-        return EncodingError.invalidValue(value, context)
-    }
-
-    static func decode(from container: SingleValueDecodingContainer) throws -> Any {
-        if let value = try? container.decode(Bool.self) {
-            return value
-        }
-        if let value = try? container.decode(Int64.self) {
-            return value
-        }
-        if let value = try? container.decode(Double.self) {
-            return value
-        }
-        if let value = try? container.decode(String.self) {
-            return value
-        }
-        if container.decodeNil() {
-            return JSONNull()
-        }
-        throw decodingError(forCodingPath: container.codingPath)
-    }
-
-    static func decode(from container: inout UnkeyedDecodingContainer) throws -> Any {
-        if let value = try? container.decode(Bool.self) {
-            return value
-        }
-        if let value = try? container.decode(Int64.self) {
-            return value
-        }
-        if let value = try? container.decode(Double.self) {
-            return value
-        }
-        if let value = try? container.decode(String.self) {
-            return value
-        }
-        if let value = try? container.decodeNil() {
-            if value {
-                return JSONNull()
-            }
-        }
-        if var container = try? container.nestedUnkeyedContainer() {
-            return try decodeArray(from: &container)
-        }
-        if var container = try? container.nestedContainer(keyedBy: JSONCodingKey.self) {
-            return try decodeDictionary(from: &container)
-        }
-        throw decodingError(forCodingPath: container.codingPath)
-    }
-
-    static func decode(from container: inout KeyedDecodingContainer<JSONCodingKey>, forKey key: JSONCodingKey) throws -> Any {
-        if let value = try? container.decode(Bool.self, forKey: key) {
-            return value
-        }
-        if let value = try? container.decode(Int64.self, forKey: key) {
-            return value
-        }
-        if let value = try? container.decode(Double.self, forKey: key) {
-            return value
-        }
-        if let value = try? container.decode(String.self, forKey: key) {
-            return value
-        }
-        if let value = try? container.decodeNil(forKey: key) {
-            if value {
-                return JSONNull()
-            }
-        }
-        if var container = try? container.nestedUnkeyedContainer(forKey: key) {
-            return try decodeArray(from: &container)
-        }
-        if var container = try? container.nestedContainer(keyedBy: JSONCodingKey.self, forKey: key) {
-            return try decodeDictionary(from: &container)
-        }
-        throw decodingError(forCodingPath: container.codingPath)
-    }
-
-    static func decodeArray(from container: inout UnkeyedDecodingContainer) throws -> [Any] {
-        var arr: [Any] = []
-        while !container.isAtEnd {
-            let value = try decode(from: &container)
-            arr.append(value)
-        }
-        return arr
-    }
-
-    static func decodeDictionary(from container: inout KeyedDecodingContainer<JSONCodingKey>) throws -> [String: Any] {
-        var dict = [String: Any]()
-        for key in container.allKeys {
-            let value = try decode(from: &container, forKey: key)
-            dict[key.stringValue] = value
-        }
-        return dict
-    }
-
-    static func encode(to container: inout UnkeyedEncodingContainer, array: [Any]) throws {
-        for value in array {
-            if let value = value as? Bool {
-                try container.encode(value)
-            } else if let value = value as? Int64 {
-                try container.encode(value)
-            } else if let value = value as? Double {
-                try container.encode(value)
-            } else if let value = value as? String {
-                try container.encode(value)
-            } else if value is JSONNull {
-                try container.encodeNil()
-            } else if let value = value as? [Any] {
-                var container = container.nestedUnkeyedContainer()
-                try encode(to: &container, array: value)
-            } else if let value = value as? [String: Any] {
-                var container = container.nestedContainer(keyedBy: JSONCodingKey.self)
-                try encode(to: &container, dictionary: value)
-            } else {
-                throw encodingError(forValue: value, codingPath: container.codingPath)
-            }
-        }
-    }
-
-    static func encode(to container: inout KeyedEncodingContainer<JSONCodingKey>, dictionary: [String: Any]) throws {
-        for (key, value) in dictionary {
-            let key = JSONCodingKey(stringValue: key)!
-            if let value = value as? Bool {
-                try container.encode(value, forKey: key)
-            } else if let value = value as? Int64 {
-                try container.encode(value, forKey: key)
-            } else if let value = value as? Double {
-                try container.encode(value, forKey: key)
-            } else if let value = value as? String {
-                try container.encode(value, forKey: key)
-            } else if value is JSONNull {
-                try container.encodeNil(forKey: key)
-            } else if let value = value as? [Any] {
-                var container = container.nestedUnkeyedContainer(forKey: key)
-                try encode(to: &container, array: value)
-            } else if let value = value as? [String: Any] {
-                var container = container.nestedContainer(keyedBy: JSONCodingKey.self, forKey: key)
-                try encode(to: &container, dictionary: value)
-            } else {
-                throw encodingError(forValue: value, codingPath: container.codingPath)
-            }
-        }
-    }
-
-    static func encode(to container: inout SingleValueEncodingContainer, value: Any) throws {
-        if let value = value as? Bool {
-            try container.encode(value)
-        } else if let value = value as? Int64 {
-            try container.encode(value)
-        } else if let value = value as? Double {
-            try container.encode(value)
-        } else if let value = value as? String {
-            try container.encode(value)
-        } else if value is JSONNull {
-            try container.encodeNil()
-        } else {
-            throw encodingError(forValue: value, codingPath: container.codingPath)
-        }
-    }
-
-    public required init(from decoder: Decoder) throws {
-        if var arrayContainer = try? decoder.unkeyedContainer() {
-            self.value = try JSONAny.decodeArray(from: &arrayContainer)
-        } else if var container = try? decoder.container(keyedBy: JSONCodingKey.self) {
-            self.value = try JSONAny.decodeDictionary(from: &container)
-        } else {
-            let container = try decoder.singleValueContainer()
-            self.value = try JSONAny.decode(from: container)
-        }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        if let arr = self.value as? [Any] {
-            var container = encoder.unkeyedContainer()
-            try JSONAny.encode(to: &container, array: arr)
-        } else if let dict = self.value as? [String: Any] {
-            var container = encoder.container(keyedBy: JSONCodingKey.self)
-            try JSONAny.encode(to: &container, dictionary: dict)
-        } else {
-            var container = encoder.singleValueContainer()
-            try JSONAny.encode(to: &container, value: self.value)
-        }
-    }
-}
-
-
