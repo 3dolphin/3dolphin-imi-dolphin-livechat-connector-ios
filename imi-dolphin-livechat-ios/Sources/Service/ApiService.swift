@@ -82,7 +82,6 @@ public class ApiService {
     
     public static func sendAttachmentMessage(url: URL, fileNsURL: NSURL, state: String, accessToken: String, sessionId: String, completionHandler: @escaping (FileResponse?, String?, Error?) -> ()) {
         
-        
         // generate boundary string using a unique per-app string
         let boundary = "--------------\(UUID().uuidString)"
         let session = URLSession.shared
@@ -131,7 +130,9 @@ public class ApiService {
                             let fileResponse: FileResponse = FileResponse(
                                 fileType:  (jsonObject["filetype"] as! String),
                                 filename: (jsonObject["filename"] as! String),
-                                status: (jsonObject["status"] as! String))
+                                status: (jsonObject["status"] as! String),
+                                filepath: (jsonObject["filepath"] as! String)
+                            )
                             completionHandler(fileResponse, nil, nil)
                         }
                     } catch {
