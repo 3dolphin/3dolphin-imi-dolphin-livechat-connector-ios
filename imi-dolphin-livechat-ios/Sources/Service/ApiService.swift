@@ -6,9 +6,14 @@
 //
 
 import Foundation
+import os.log
 
+let subSystem = Bundle.main.bundleIdentifier
 
 public class ApiService {
+    
+    
+   
     
     /*
      Access token API api sevice function
@@ -63,7 +68,6 @@ public class ApiService {
             guard let data = data else {
                 return
             }
-            
             do {
                 let tokenModel = try! JSONDecoder().decode(TokenModel.self, from: data)
                 completionHandler(tokenModel, nil)
@@ -158,6 +162,45 @@ public class ApiService {
         return resData
     }
     
+    
+    
+    
+    /*
+     Get queue api service
+     */
+    public static func getQueueService(url: URL, completionHandler: @escaping (QueueResponse?, Error?) -> Void) {
+        
+        var urlRequest = URLRequest(url: url)
+        let log = OSLog(subsystem: subSystem!, category: "Queue Log")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.httpMethod = "GET"
+        URLSession.shared.dataTask(with: urlRequest, completionHandler: { data, response, error in
+            
+            if error != nil {
+                os_log("Failed get queue cause of error", log: log, type: .error)
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse,
+                        (200...299).contains(httpResponse.statusCode) else {
+                return
+            }
+            do {
+                let jsonObject = try! JSONSerialization.jsonObject(with: data!, options: .allowFragments) as? NSDictionary
+                
+                let responseProp = jsonObject!["response"] as? String
+                let data = responseProp?.data(using: .utf8)
+                
+                let responseJson = try? JSONSerialization.jsonObject(with: data!, options: .allowFragments) as? [String: Any]
+                let responseQueue: QueueResponse = QueueResponse(data: responseJson!["data"] as! Int, status: responseJson!["status"] as! String)
+                
+                completionHandler(responseQueue, nil)
+            } catch {
+                os_log("Failed parsing response with error: %@", log: log, type: .error, error.localizedDescription)
+                completionHandler(nil, error)
+            }
+        }).resume()
+    }
     
     
     

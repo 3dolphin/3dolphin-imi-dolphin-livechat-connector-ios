@@ -21,6 +21,7 @@ let notificationMessage = "com.connector.notificationMessage"
 let notificationConnectionStatus = "com.connector.connectionStatus"
 let notificationReadMessage = "com.connector.notificationReadMessage"
 let notificationTypingCondition = "com.connector.notificationTypingCondition"
+let notificationQueue = "com.connector.notificationQueue"
 
 public class Connector: StompClientLibDelegate {
     
@@ -70,7 +71,7 @@ public class Connector: StompClientLibDelegate {
     var subsystem = Bundle.main.bundleIdentifier!
     
     /*
-     Initilisation connector
+     Initialisation connector
      */
     public static var shared = Connector()
     public init(){}
@@ -130,7 +131,7 @@ public class Connector: StompClientLibDelegate {
         let group = DispatchGroup()
         group.enter()
         
-        ApiService.getAccessToken(url: url, token: token) { result, error in
+        ApiService.getAccessToken(url: url, token: token) { [self] result, error in
             if result != nil {
                 self.tokenModel = result!
                 self.access_token = result!.accessToken!
@@ -264,15 +265,43 @@ public class Connector: StompClientLibDelegate {
                 os_log("Typing event", log: log, type: .info)
                 NotificationCenter.default.post(name: Notification.Name(rawValue: notificationTypingCondition), object: msgDecriypted)
             } else if msgDecriypted.event == Constant.unassignedEvent {
-                
+                getQueueTicket()
                 os_log("Unassigned event", log: log, type: .info)
             } else {
                 os_log("Message event", log: log, type: .info)
                 incomingMessage(incomingMsg: msgDecriypted)
             }
-            
         }
     }
+    
+    
+    /*
+     getQueue ticket : When websocket send Message.event = unassigned
+     */
+    func getQueueTicket(){
+        let socialId: String = dolphinProfile!.phoneNumber!+"-"+dolphinProfile!.name!
+        let url = URL(string: baseUrl+"/webchat/queue?access_token=\(access_token)&token=\(token)&accountId=\(socialId)")
+        let log = OSLog(subsystem: subSystem!, category: "Queue Log")
+        
+        ApiService.getQueueService(url: url!) { queueResponse, error in
+            
+            if queueResponse != nil {
+                if queueResponse!.data! > 0 {
+                    os_log("Broadcast queue to main", log: log, type: .info)
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationQueue), object: queueResponse)
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now()+30) { [self] in
+                        getQueueTicket()
+                    }
+                }
+            } else {
+                os_log("Failed broadcast queue", log: log, type: .error)
+            }
+        }
+        
+    }
+    
     
     /*
      Split type of incoming message by file type
