@@ -23,6 +23,9 @@ let notificationReadMessage = "com.connector.notificationReadMessage"
 let notificationTypingCondition = "com.connector.notificationTypingCondition"
 let notificationQueue = "com.connector.notificationQueue"
 
+
+public var subSystem = Bundle.main.bundleIdentifier
+
 public class Connector: StompClientLibDelegate {
     
     // message type
@@ -67,7 +70,7 @@ public class Connector: StompClientLibDelegate {
     public static let CONSTANT_TYPE_AUDIO: String = "audio"
     public static let CONSTANT_TYPE_VIDEO: String = "video"
     public static let CONSTANT_TYPE_MESSAGE: String = "message"
-    public var subSystem = Bundle.main.bundleIdentifier
+    
     
     
     /*
@@ -291,6 +294,10 @@ public class Connector: StompClientLibDelegate {
         }
     }
     
+    
+    /*
+     get queue number when received unassigned event
+     */
     public func getQueueTicket() {
         let log = OSLog(subsystem: subSystem!, category: "Queue Ticket")
         
@@ -327,7 +334,6 @@ public class Connector: StompClientLibDelegate {
                     DispatchQueue.main.async {
                         NotificationCenter.default.post(name: Notification.Name(rawValue: notificationQueue), object: queueResponse)
                     }
-                    
                     DispatchQueue.main.asyncAfter(deadline: .now()+30) { [self] in
                         getQueueTicket()
                     }
@@ -522,7 +528,6 @@ public class Connector: StompClientLibDelegate {
             attachmentUrl = attachmentUrl+"/webchat/in/\(state)/"+filename+"?access_token=\(access_token)"
         }
         let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: state)
-        
         NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
     }
     
@@ -536,9 +541,6 @@ public class Connector: StompClientLibDelegate {
         let ack = wsMessage
         let headers = ["accessToken": access_token, "ack" : ack!, "id" : id! ]
         
-        /*
-         Start subscribe with header
-         */
         socketClient.subscribeWithHeader(destination: wsMessage!, withHeader: headers)
     }
     
@@ -562,9 +564,7 @@ public class Connector: StompClientLibDelegate {
         let headers = ["ack": "client",
                        "id" : id,
                        "accessToken" : access_token]
-        /*
-         Subscribe ACK with header
-         */
+
         socketClient.subscribeWithHeader(destination: wsAck, withHeader: headers)
     }
     
@@ -638,7 +638,7 @@ public class Connector: StompClientLibDelegate {
         // generate boundary string using a unique per-app string
         let boundary = "--------------\(UUID().uuidString)"
         let session = URLSession.shared
-        let mimeType = getMimeByState(state: state)
+        let mimeType = state.getFileType()
         var data: Data = convertToDataByMime(fileNsUrl: fileNsUrl!, mimeType: mimeType)
         let fileName: String = (fileNsUrl?.lastPathComponent)!
         // Set the URLRequest to POST and to the specified URL
@@ -736,23 +736,6 @@ public class Connector: StompClientLibDelegate {
     }
     
     
-    /*
-     Set mime type by state from APP
-     */
-    public func getMimeByState(state: String)-> String {
-        if state == Connector.CONSTANT_TYPE_IMAGE{
-            return Connector.CONSTANT_TYPE_IMAGE
-        } else if state == Connector.CONSTANT_TYPE_DOCUMENT {
-            return Connector.CONSTANT_TYPE_DOCUMENT
-        } else if state == Connector.CONSTANT_TYPE_AUDIO{
-            return Connector.CONSTANT_TYPE_AUDIO
-        } else {
-            return Connector.CONSTANT_TYPE_VIDEO
-        }
-    }
-    
-
-    
     
     /*
      Get attachment URL after receiving from minio response
@@ -761,17 +744,7 @@ public class Connector: StompClientLibDelegate {
         
         var type: String = json["filetype"] as! String
         var filename: String = json["filename"] as! String
-        
-        if type.starts(with: Connector.CONSTANT_TYPE_IMAGE ) {
-            type = Connector.CONSTANT_TYPE_IMAGE
-        } else if type.starts(with: Connector.CONSTANT_TYPE_DOCUMENT) {
-            type = Connector.CONSTANT_TYPE_DOCUMENT
-        } else if type.starts(with: Connector.CONSTANT_TYPE_AUDIO){
-            type = Connector.CONSTANT_TYPE_AUDIO
-        } else if type.starts(with: Connector.CONSTANT_TYPE_VIDEO) {
-            type = Connector.CONSTANT_TYPE_VIDEO
-        }
-        
+        type = type.getFileType()
         filename = filename.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: "(", with: "").replacingOccurrences(of: ")", with: "")
         
         print(" URLNYA : \(baseUrl)/webchat/in/\(type)/\(filename)")
@@ -895,16 +868,8 @@ public class Connector: StompClientLibDelegate {
         mediaMessage.sessionId = sessionId
         mediaMessage.agentName = dolphinProfile!.name!
         mediaMessage.attFiletype = state
-        
-        if state == Connector.CONSTANT_TYPE_IMAGE {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_IMAGE)
-        } else if state == Connector.CONSTANT_TYPE_DOCUMENT {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_DOCUMENT)
-        } else if state == Connector.CONSTANT_TYPE_AUDIO {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_AUDIO)
-        } else if state == Connector.CONSTANT_TYPE_VIDEO {
-            setIncomingFileTypeAndState(message: mediaMessage, state: Connector.CONSTANT_TYPE_VIDEO)
-        }
+        var newState = state.getFileType()
+        setIncomingFileTypeAndState(message: mediaMessage, state: newState)
         NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: mediaMessage)
         return mediaMessage
     }
@@ -1572,9 +1537,6 @@ class AESEncryption {
         let newIv = iv.replacingOccurrences(of: "\r\n", with: "", options: [.regularExpression, .caseInsensitive])
         let saltBytes: [UInt8] = base64ToByteArray(base64String: newSalt)!
         let ivBytes: [UInt8] = base64ToByteArray(base64String: newIv)!
-    
-        
-        // decode message
         let messageData = Data(base64Encoded: message, options: .ignoreUnknownCharacters)
         var decodedString:String?
         
@@ -1606,6 +1568,9 @@ class AESEncryption {
      Do encrypt message
      */
     public static func doEncrypt(clientSecret: String, message: DolphinMessage, accessToken: String) {
+        
+        let log = OSLog(subsystem: subSystem!, category: "Encrypt Message")
+        
         do {
             let iterationCount = 1000
             let keySize = 16
@@ -1614,10 +1579,8 @@ class AESEncryption {
             let accessToken: String = accessToken;
             let chiperKey = (clientSecrect + accessToken).md5()
             let secretKey: [UInt8] = chiperKey.md5().bytes
-            /* Generate random IV value and Salt Value */
             let iv = randomBytes(16)
             let ivString = Data(iv).base64EncodedString()
-                        
             let newSalt = randomBytes(16)
             let saltString = Data(newSalt).base64EncodedString()
             
@@ -1639,7 +1602,7 @@ class AESEncryption {
             message.iv = ivString
             message.salt = saltString
         } catch {
-            print("Error ")
+            os_log("Failed encrypt message with error: %@", log: log, type: .error, error.localizedDescription)
         }
        
     }
