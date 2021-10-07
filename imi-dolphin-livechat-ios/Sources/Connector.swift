@@ -489,49 +489,41 @@ public class Connector: StompClientLibDelegate {
                             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
                         }
                     } else {
-                        var attachmentUrl: String = baseUrl
                         if chatMessage.documentLink != nil {
                             let filename = chatMessage.documentLink!.parsingData()
-                            if chatMessage.accountName != dolphinProfile?.name {
-                                attachmentUrl = attachmentUrl+"/webchat/out/document/"+filename+"?access_token=\(access_token)"
-                            } else{
-                                attachmentUrl = attachmentUrl+"/webchat/in/document/"+filename+"?access_token=\(access_token)"
-                            }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_DOCUMENT)
-                            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                            broadCastChatHistory(chatMessage: chatMessage, filename: filename, accountName: chatMessage.accountName!, state: Connector.CONSTANT_TYPE_DOCUMENT)
                         } else if chatMessage.videoLink != nil {
                             let filename = chatMessage.videoLink!.parsingData()
-                            if chatMessage.accountName != dolphinProfile?.name {
-                                attachmentUrl = attachmentUrl+"/webchat/out/video/"+filename+"?access_token=\(access_token)"
-                            } else{
-                                attachmentUrl = attachmentUrl+"/webchat/in/video/"+filename+"?access_token=\(access_token)"
-                            }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_VIDEO)
-                            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                            broadCastChatHistory(chatMessage: chatMessage, filename: filename, accountName: chatMessage.accountName!, state: Connector.CONSTANT_TYPE_VIDEO)
                         } else if chatMessage.audioLink != nil {
                             let filename = chatMessage.audioLink!.parsingData()
-                            if chatMessage.accountName != dolphinProfile?.name {
-                                attachmentUrl = attachmentUrl+"/webchat/out/audio/"+filename+"?access_token=\(access_token)"
-                            } else{
-                                attachmentUrl = attachmentUrl+"/webchat/in/audio/"+filename+"?access_token=\(access_token)"
-                            }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_AUDIO)
-                            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                            broadCastChatHistory(chatMessage: chatMessage, filename: filename, accountName: chatMessage.accountName!, state: Connector.CONSTANT_TYPE_AUDIO)
                         } else if chatMessage.pictureLink != nil {
                             let filename = chatMessage.pictureLink!.parsingData()
-                            if chatMessage.accountName != dolphinProfile?.name {
-                                attachmentUrl = attachmentUrl+"/webchat/out/image/"+filename+"?access_token=\(access_token)"
-                            } else{
-                                attachmentUrl = attachmentUrl+"/webchat/in/image/"+filename+"?access_token=\(access_token)"
-                            }
-                            let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: Connector.CONSTANT_TYPE_IMAGE)
-                            NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
+                            broadCastChatHistory(chatMessage: chatMessage, filename: filename, accountName: chatMessage.accountName!, state: Connector.CONSTANT_TYPE_IMAGE)
                         }
                     }
                  }
             }
         })
         dataTask.resume()
+    }
+    
+    
+    
+    /*
+     broadcast chat history to client app
+     */
+    public func broadCastChatHistory(chatMessage: DolphinChatHistory, filename: String, accountName: String, state: String){
+        var attachmentUrl: String = baseUrl
+        if accountName != dolphinProfile?.name {
+            attachmentUrl = attachmentUrl+"/webchat/out/\(state)/"+filename+"?access_token=\(access_token)"
+        } else{
+            attachmentUrl = attachmentUrl+"/webchat/in/\(state)/"+filename+"?access_token=\(access_token)"
+        }
+        let dolphinMessage: DolphinMessage = DolphinMessage.parsingHistoryToMessage(chatMessage: chatMessage, filename: filename, attachmentUrl: attachmentUrl, state: state)
+        
+        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: dolphinMessage)
     }
     
     
