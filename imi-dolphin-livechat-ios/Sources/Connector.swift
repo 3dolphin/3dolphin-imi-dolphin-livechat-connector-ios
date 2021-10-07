@@ -721,7 +721,6 @@ public class Connector: StompClientLibDelegate {
     }
     
     
-    
     /*
      Convert data file to mime
      */
@@ -931,8 +930,20 @@ extension String {
             print(error)
         }
         return dictonary!["filename"]! as! String
-        
     }
+    
+    func getFileType()-> String {
+        if self.contains(Connector.CONSTANT_TYPE_IMAGE){
+            return Connector.CONSTANT_TYPE_IMAGE
+        } else if self.contains(Connector.CONSTANT_TYPE_DOCUMENT) || self.contains( Connector.CONSTANT_TYPE_APPLICATION){
+            return Connector.CONSTANT_TYPE_DOCUMENT
+        } else if self.contains(Connector.CONSTANT_TYPE_VIDEO) || self.contains( Connector.CONSTANT_TYPE_OCTET_STREAM){
+            return Connector.CONSTANT_TYPE_VIDEO
+        } else {
+            return Connector.CONSTANT_TYPE_AUDIO
+        }
+    }
+    
     
 }
 
