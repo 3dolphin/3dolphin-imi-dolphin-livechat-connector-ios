@@ -225,8 +225,6 @@ public class Connector: StompClientLibDelegate {
                     if msgDecrypted!.token != nil {
                         if msgDecrypted?.message == nil && msgDecrypted!.event == nil {
                             token = msgDecrypted!.token!
-                            
-                            print("current token", token)
                             if msgDecrypted?.sessionId != nil {
                                 sessionId = msgDecrypted?.sessionId
                                 DispatchQueue.main.async { [self] in
@@ -317,15 +315,8 @@ public class Connector: StompClientLibDelegate {
             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: incomingMsg)
         } else {
             incomingMsg.attUrl = getUrlFile(url: incomingMsg.attUrl!)
-            if incomingMsg.attUrl != nil && (incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_IMAGE)) {
-                setIncomingFileTypeAndState(message: incomingMsg, state: Connector.CONSTANT_TYPE_IMAGE)
-            } else if incomingMsg.attUrl != nil && (incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_VIDEO)) || (incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_OCTET_STREAM)){
-                setIncomingFileTypeAndState(message: incomingMsg, state: Connector.CONSTANT_TYPE_VIDEO)
-            } else if incomingMsg.attUrl != nil && (incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_DOCUMENT) || incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_APPLICATION)){
-                setIncomingFileTypeAndState(message: incomingMsg, state: Connector.CONSTANT_TYPE_DOCUMENT)
-            } else if incomingMsg.attUrl != nil && incomingMsg.attFiletype!.contains(Connector.CONSTANT_TYPE_AUDIO) {
-                setIncomingFileTypeAndState(message: incomingMsg, state: Connector.CONSTANT_TYPE_AUDIO)
-            }
+            let state: String = incomingMsg.attUrl!.getFileType()
+            setIncomingFileTypeAndState(message: incomingMsg, state: state)
             NotificationCenter.default.post(name: Notification.Name(rawValue: notificationMessage), object: incomingMsg)
         }
     }

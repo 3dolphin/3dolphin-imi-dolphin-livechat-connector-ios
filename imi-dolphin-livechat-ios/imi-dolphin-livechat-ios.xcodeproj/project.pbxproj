@@ -13,7 +13,11 @@
 		E71ABF482702CA80003F437E /* DolphinProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71ABF472702CA80003F437E /* DolphinProfile.swift */; };
 		E71ABF4B2702DF47003F437E /* ApiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71ABF4A2702DF47003F437E /* ApiService.swift */; };
 		E71ABF4D2702F06B003F437E /* TokenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71ABF4C2702F06B003F437E /* TokenModel.swift */; };
+		E71ABF502703806F003F437E /* Constant.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71ABF4F2703806F003F437E /* Constant.swift */; };
 		E7666A702643A68E004B0457 /* Connector.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7666A6F2643A68E004B0457 /* Connector.swift */; };
+		E77017F7270578B1004F51FD /* QueueResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = E77017F6270578B1004F51FD /* QueueResponse.swift */; };
+		E79DCE2C270438F200F9DDD2 /* JSONAny.swift in Sources */ = {isa = PBXBuildFile; fileRef = E79DCE2B270438F200F9DDD2 /* JSONAny.swift */; };
+		E79DCE2E270471C800F9DDD2 /* FileResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = E79DCE2D270471C800F9DDD2 /* FileResponse.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -37,9 +41,13 @@
 		E71ABF472702CA80003F437E /* DolphinProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DolphinProfile.swift; sourceTree = "<group>"; };
 		E71ABF4A2702DF47003F437E /* ApiService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiService.swift; sourceTree = "<group>"; };
 		E71ABF4C2702F06B003F437E /* TokenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenModel.swift; sourceTree = "<group>"; };
+		E71ABF4F2703806F003F437E /* Constant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constant.swift; sourceTree = "<group>"; };
 		E7666A632643A669004B0457 /* imi_dolphin_livechat_ios.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = imi_dolphin_livechat_ios.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7666A672643A669004B0457 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E7666A6F2643A68E004B0457 /* Connector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connector.swift; sourceTree = "<group>"; };
+		E77017F6270578B1004F51FD /* QueueResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueResponse.swift; sourceTree = "<group>"; };
+		E79DCE2B270438F200F9DDD2 /* JSONAny.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONAny.swift; sourceTree = "<group>"; };
+		E79DCE2D270471C800F9DDD2 /* FileResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileResponse.swift; sourceTree = "<group>"; };
 		F3A4DA82F7F65B6F1D8DE357 /* Pods-imi-dolphin-livechat-ios.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-imi-dolphin-livechat-ios.release.xcconfig"; path = "Target Support Files/Pods-imi-dolphin-livechat-ios/Pods-imi-dolphin-livechat-ios.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -74,10 +82,11 @@
 			isa = PBXGroup;
 			children = (
 				E71ABF412702B812003F437E /* DolphinMessage.swift */,
-				E71ABF432702B823003F437E /* AESEncryption.swift */,
 				E71ABF452702BD9F003F437E /* DolphinChatHistory.swift */,
 				E71ABF472702CA80003F437E /* DolphinProfile.swift */,
 				E71ABF4C2702F06B003F437E /* TokenModel.swift */,
+				E79DCE2D270471C800F9DDD2 /* FileResponse.swift */,
+				E77017F6270578B1004F51FD /* QueueResponse.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -88,6 +97,16 @@
 				E71ABF4A2702DF47003F437E /* ApiService.swift */,
 			);
 			path = Service;
+			sourceTree = "<group>";
+		};
+		E71ABF4E27038062003F437E /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				E71ABF432702B823003F437E /* AESEncryption.swift */,
+				E71ABF4F2703806F003F437E /* Constant.swift */,
+				E79DCE2B270438F200F9DDD2 /* JSONAny.swift */,
+			);
+			path = Utils;
 			sourceTree = "<group>";
 		};
 		E7666A592643A669004B0457 = {
@@ -111,6 +130,7 @@
 		E7666A652643A669004B0457 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				E71ABF4E27038062003F437E /* Utils */,
 				E71ABF492702DF23003F437E /* Service */,
 				E71ABF402702B805003F437E /* Model */,
 				E7666A6F2643A68E004B0457 /* Connector.swift */,
@@ -224,10 +244,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E79DCE2E270471C800F9DDD2 /* FileResponse.swift in Sources */,
 				E71ABF422702B812003F437E /* DolphinMessage.swift in Sources */,
 				E71ABF4D2702F06B003F437E /* TokenModel.swift in Sources */,
 				E7666A702643A68E004B0457 /* Connector.swift in Sources */,
+				E71ABF502703806F003F437E /* Constant.swift in Sources */,
 				E71ABF4B2702DF47003F437E /* ApiService.swift in Sources */,
+				E77017F7270578B1004F51FD /* QueueResponse.swift in Sources */,
+				E79DCE2C270438F200F9DDD2 /* JSONAny.swift in Sources */,
 				E71ABF482702CA80003F437E /* DolphinProfile.swift in Sources */,
 				E71ABF442702B823003F437E /* AESEncryption.swift in Sources */,
 				E71ABF462702BD9F003F437E /* DolphinChatHistory.swift in Sources */,
