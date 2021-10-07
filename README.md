@@ -53,7 +53,7 @@ let notificationMessage = "com.connector.notificationMessage"
 let notificationConnectionStatus = "com.connector.connectionStatus"
 let notificationReadMessage = "com.connector.notificationReadMessage"
 let notificationTypingCondition = "com.connector.notificationTypingCondition"
-
+let notificationQueue = "com.connector.notificationQueue"
 ```
 
 - Inside *viewDidLoad* function, setup profile, connection, and Notification center
@@ -68,6 +68,7 @@ NotificationCenter.default.addObserver(self, selector: #selector(doOnReceiveMess
 NotificationCenter.default.addObserver(self, selector: #selector(doUpdateConnectionStatus(_:)), name: Notification.Name(rawValue: notificationConnectionStatus), object: nil)
 NotificationCenter.default.addObserver(self, selector: #selector(doUpdateStatusMessage(_:)), name: Notification.Name(rawValue: notificationReadMessage), object: nil)
 NotificationCenter.default.addObserver(self, selector: #selector(doUpdateTypingCondition(_:)), name: Notification.Name(rawValue: notificationTypingCondition), object: nil)
+NotificationCenter.default.addObserver(self, selector: #selector(getQueueNumber(_:)), name: Notification.Name(rawValue: notificationQueue), object: nil)
 
 ```
 
@@ -110,6 +111,14 @@ NotificationCenter.default.addObserver(self, selector: #selector(doUpdateTypingC
         /*
          Do your code here when agent ( customer service is typing message)
          */
+    }
+    
+     
+    @objc func getQueueNumber(_ notification: NSNotification){
+        let queueNumber = notification.object as! QueueResponse
+        print("Your are in \(queueNumber.data) right now")
+        // queueNumber.data -> queue number
+        // queueNumber.status -> status api reponse        
     }
 
 ```
