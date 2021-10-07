@@ -13,6 +13,7 @@ import CryptoSwift
 import var CommonCrypto.CC_MD5_DIGEST_LENGTH
 import func CommonCrypto.CC_MD5
 import typealias CommonCrypto.CC_LONG
+import os.log
 
 
 
@@ -20,6 +21,7 @@ let notificationMessage = "com.connector.notificationMessage"
 let notificationConnectionStatus = "com.connector.connectionStatus"
 let notificationReadMessage = "com.connector.notificationReadMessage"
 let notificationTypingCondition = "com.connector.notificationTypingCondition"
+let notificationQueue = "com.connector.notificationQueue"
 
 public class Connector: StompClientLibDelegate {
     
@@ -58,13 +60,14 @@ public class Connector: StompClientLibDelegate {
     var wsAck: String = ""
     var sessionId: String?
     var dolphinProfile: DolphinProfile?
-    public static let CONSTANT_TYPE_IMAGE: String = "image";
-    public static let CONSTANT_TYPE_DOCUMENT: String = "document";
-    public static let CONSTANT_TYPE_OCTET_STREAM: String = "application/octet-stream";
-    public static let CONSTANT_TYPE_APPLICATION: String = "application/pdf";
-    public static let CONSTANT_TYPE_AUDIO: String = "audio";
-    public static let CONSTANT_TYPE_VIDEO: String = "video";
-    public static let CONSTANT_TYPE_MESSAGE: String = "message";
+    public static let CONSTANT_TYPE_IMAGE: String = "image"
+    public static let CONSTANT_TYPE_DOCUMENT: String = "document"
+    public static let CONSTANT_TYPE_OCTET_STREAM: String = "application/octet-stream"
+    public static let CONSTANT_TYPE_APPLICATION: String = "application/pdf"
+    public static let CONSTANT_TYPE_AUDIO: String = "audio"
+    public static let CONSTANT_TYPE_VIDEO: String = "video"
+    public static let CONSTANT_TYPE_MESSAGE: String = "message"
+    public var subSystem = Bundle.main.bundleIdentifier
     
     
     /*
@@ -207,9 +210,7 @@ public class Connector: StompClientLibDelegate {
         print("socketnyaurl", socketUrl)
         token = dolphinProfile!.name! + dolphinProfile!.email! + dolphinProfile!.phoneNumber! + dolphinProfile!.uid!
         token = token.md5()
-        
-//            AESEncryption.MD5(cipherKey: token)
-        
+            
         
         /*
          Call request to connect to websocket
@@ -277,7 +278,10 @@ public class Connector: StompClientLibDelegate {
             } else if msgDecriypted.event == "read" {
                 print("read")
                 NotificationCenter.default.post(name: Notification.Name(rawValue: notificationReadMessage), object: msgDecriypted)
-            } else if msgDecriypted.event == "typing" {
+            } else if msgDecriypted.event == "unassigned"{
+                getQueueTicket()
+            }
+            else if msgDecriypted.event == "typing" {
                 print("typing")
                 NotificationCenter.default.post(name: Notification.Name(rawValue: notificationTypingCondition), object: msgDecriypted)
             } else {
@@ -286,6 +290,59 @@ public class Connector: StompClientLibDelegate {
             
         }
     }
+    
+    public func getQueueTicket() {
+        let log = OSLog(subsystem: subSystem!, category: "Queue Ticket")
+        
+        let socialId: String = dolphinProfile!.phoneNumber!+"-"+dolphinProfile!.name!
+        let url = URL(string: baseUrl+"/webchat/queue?access_token=\(access_token)&token=\(token)&accountId=\(socialId)")!
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.httpMethod = "GET"
+        
+        
+        URLSession.shared.dataTask(with: urlRequest, completionHandler: { data, response, error in
+            
+            if error != nil {
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                return
+            }
+            
+            do {
+                
+                let jsonObject = try! JSONSerialization.jsonObject(with: data!, options: .allowFragments) as? NSDictionary
+                
+                let responseStr = jsonObject!["response"] as? String
+                let dataResponse = responseStr!.data(using: .utf8)
+                
+                let responseJson = try? JSONSerialization.jsonObject(with: dataResponse!, options: .allowFragments) as? [String: Any]
+                let queueResponse = QueueResponse(data: responseJson!["data"] as! Int, status: responseJson!["status"] as! String)
+                
+                if(queueResponse.data > 0){
+                    
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: Notification.Name(rawValue: notificationQueue), object: queueResponse)
+                    }
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now()+30) { [self] in
+                        getQueueTicket()
+                    }
+                }
+                
+                
+            } catch {
+                os_log("Failed get queue ticket", log: log, type: .error)
+            }
+            
+        }).resume()
+        
+    }
+    
+    
     
     /*
      Split type of incoming message by file type
@@ -1375,18 +1432,15 @@ class AESEncryption {
     
     
     
-    ///
-    /// Generate Random bytes
-    ///
+    
     public static func randomBytes(_ count: Int) -> Array<UInt8> {
       (0..<count).map({ _ in UInt8.random(in: 0...UInt8.max) })
     }
     
     
-    ///
-    /// do decrypt
-    ///
-    
+    /*
+     Do decypt message
+     */
     public static func doDecrypt(clientSecret: String, accessToken: String, messageToDec: DolphinMessage) -> DolphinMessage?  {
         
         
@@ -1420,10 +1474,9 @@ class AESEncryption {
     
     
     
-    ///
-    /// decrypt message part 1
-    ///
-    
+    /*
+     Decrypt message part 1
+     */
     public static func decryptMessagePart1(decryptMessage: DolphinMessage, messageToDec: DolphinMessage, key: String)-> DolphinMessage {
         
         let iv = messageToDec.iv
@@ -1456,13 +1509,9 @@ class AESEncryption {
     }
     
 
-    
-    
-    
-    ///
-    /// decrypt message part 2
-    ///
-    
+    /*
+     Decrypt message part 2
+     */
     public static func decryptMessagePart2(decryptMessage: DolphinMessage, messageToDec: DolphinMessage, key: String)->  DolphinMessage {
         
         let iv = messageToDec.iv
@@ -1524,9 +1573,8 @@ class AESEncryption {
         
         // decode message
         let messageData = Data(base64Encoded: message, options: .ignoreUnknownCharacters)
+        var decodedString:String?
         
-        var decryptedMessage: String?
-    
         do {
             
             let key = try PKCS5.PBKDF2(
@@ -1542,20 +1590,18 @@ class AESEncryption {
             let aes = try AES(key: key, blockMode: CBC(iv: ivBytes), padding: .pkcs5)
             let decryptedBytes = try aes.decrypt(messageData!.bytes)
             let descryptData = Data(decryptedBytes)
-            let decodedString = String(data: descryptData, encoding: .utf8)
+            decodedString = String(data: descryptData, encoding: .utf8)
             return decodedString
         } catch let error{
             print("Error with \(error)" )
+            return decodedString
         }
-     
-        return decryptedMessage
     }
     
     
-    
-    ///
-    /// do encrypt
-    ///
+    /*
+     Do encrypt message
+     */
     public static func doEncrypt(clientSecret: String, message: DolphinMessage, accessToken: String) {
         do {
             let iterationCount = 1000
@@ -1567,7 +1613,6 @@ class AESEncryption {
             let secretKey: [UInt8] = chiperKey.md5().bytes
             /* Generate random IV value and Salt Value */
             let iv = randomBytes(16)
-            print("IV Before: \(iv)")
             let ivString = Data(iv).base64EncodedString()
                         
             let newSalt = randomBytes(16)
@@ -1597,7 +1642,9 @@ class AESEncryption {
     }
     
     
-    /// do encrypt message part 1
+    /*
+     Do encrypt message part 1
+     */
     public static func doEncryptMessagePart1(msgToEncrypt: DolphinMessage, iv: [UInt8], key: [UInt8], accessToken: String)-> Void {
         
         if msgToEncrypt.agent != nil && !msgToEncrypt.agent!.isEmpty {
@@ -1626,7 +1673,9 @@ class AESEncryption {
     
     
     
-    /// do encrypt message part 2
+    /*
+     Do encrypt message part 2
+     */
     public static func doEncryptMessagePart2(msgToEncrypt: DolphinMessage, iv: [UInt8], key: [UInt8], accessToken: String)-> Void {
 
         if msgToEncrypt.event != nil && !msgToEncrypt.event!.isEmpty {
@@ -1641,7 +1690,9 @@ class AESEncryption {
     }
     
     
-    /// encrypt message
+    /*
+     Do encrypt file
+     */
     public static func doEncryptFile(msgToEncrypt: DolphinMessage, iv: [UInt8], key: [UInt8], accessToken: String)-> Void {
         
         if msgToEncrypt.attFilename != nil && !msgToEncrypt.attFilename!.isEmpty {
@@ -1666,11 +1717,11 @@ class AESEncryption {
         
     }
     
-    
-    ///
-    /// Encrypt given data
-    ///
+    /*
+     Encrypt given data
+     */
     public static func encrypt(message: String, accessToken: String, iv: Array<UInt8>, key: Array<UInt8>) -> String {
+        
         do {
             let data: Data = message.data(using:.utf8)!
             let aes = try AES(key: key, blockMode: CBC(iv: iv),  padding:.pkcs5)
@@ -1679,8 +1730,6 @@ class AESEncryption {
             let encryptedBytes = try aes.encrypt(data.bytes)
             //let encryptedBytes = try aes.encrypt(buffer)
             let encryptedData = Data(encryptedBytes)
-            print("Encrypted data: " + encryptedData.toHexString())
-            
             //let messageChiper = encryptedData.base64EncodedString()
             let messageChiper = encryptedData.base64EncodedString().data(using: .utf8)
             
@@ -1692,4 +1741,16 @@ class AESEncryption {
     }
 
 
+}
+
+public struct QueueResponse {
+    public let data: Int
+    public let status: String
+    
+    
+    public init(data: Int, status: String) {
+        self.data = data
+        self.status = status
+    }
+    
 }
