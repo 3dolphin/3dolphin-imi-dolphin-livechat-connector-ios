@@ -13,10 +13,11 @@ let notificationMessage = "com.connector.notificationMessage"
 let notificationConnectionStatus = "com.connector.connectionStatus"
 let notificationReadMessage = "com.connector.notificationReadMessage"
 let notificationTypingCondition = "com.connector.notificationTypingCondition"
+let notificationQueue = "com.connector.notificationQueue"
+
+
 class ViewController: UIViewController {
 
-    
-    
     /*
      setup url, clientId, and clientSecret before connection started
      */
@@ -24,11 +25,6 @@ class ViewController: UIViewController {
     let clientId: String = "b7674391db9fce68390998c3c4865442"
     let clientSecrect: String = "d501b0b896247c1bb0b8644eaf33d6c7"
 
-    
-    
-    
-    
-    
 
     var connector: Connector?
 
@@ -49,6 +45,7 @@ class ViewController: UIViewController {
         NotificationCenter.default.addObserver(self, selector: #selector(doUpdateConnectionStatus(_:)), name: Notification.Name(rawValue: notificationConnectionStatus), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(doUpdateStatusMessage(_:)), name: Notification.Name(rawValue: notificationReadMessage), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(doUpdateTypingCondition(_:)), name: Notification.Name(rawValue: notificationTypingCondition), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(doQueueNumber(_:)), name: Notification.Name(rawValue: notificationQueue), object: nil)
         
     }
     
@@ -95,6 +92,18 @@ class ViewController: UIViewController {
          */
 
     }
+    
+    
+    @objc func doQueueNumber(_ notification: NSNotification){
+        let queueNumber = notification.object as! QueueResponse
+        
+        print("You are in \(queueNumber.data) right now")
+        /*
+         queueNumber.data => currently queue number
+         queueNumber.status => api response status
+        */
+    }
+    
 
 
 }
