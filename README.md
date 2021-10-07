@@ -205,6 +205,6 @@ For carousel image url you may use format :
  var imageUrl = baseUrl/webchat/out/button/filename?access_token="accessToken"
 ```
 
-Sept 15, 2021
+Oct 7, 2021
 
-To see more detail about how to implement this library, you can see in Example folder
+To see more detail about how to implement this library, you can see in Example project
