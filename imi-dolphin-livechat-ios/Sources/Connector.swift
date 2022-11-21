@@ -253,7 +253,6 @@ public class Connector: StompClientLibDelegate {
                                 sessionId = msgDecrypted?.sessionId
                                 DispatchQueue.main.async { [self] in
                                     NotificationCenter.default.post(name: Notification.Name(rawValue: notificationConnectionStatus), object: 2)
-                                    onSendMessage(messages: triggerMenuMessage)
                                 }
                             }
                             subscribeTransaction()
@@ -484,6 +483,9 @@ public class Connector: StompClientLibDelegate {
                 return
             }
             var chatHistories = try! JSONDecoder().decode([DolphinChatHistory].self, from: data!)
+            if (chatHistories == nil || chatHistories.isEmpty) {
+                onSendMessage(messages: triggerMenuMessage)
+            }
             chatHistories.reverse()
             DispatchQueue.main.async { [self] in
                 for chatMessage in chatHistories {
